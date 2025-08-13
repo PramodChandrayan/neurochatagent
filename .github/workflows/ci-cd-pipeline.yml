@@ -176,11 +176,48 @@ jobs:
       - name: 🎯 Set image tag
         run: echo "image-tag=${{ github.sha }}" >> $GITHUB_OUTPUT
 
+  # 🗄️ DATABASE MIGRATION (STAGING)
+  migrate-staging-db:
+    name: 🗄️ Migrate Staging Database
+    runs-on: ubuntu-latest
+    needs: build-container
+    if: github.ref == 'refs/heads/develop' || github.event_name == 'workflow_dispatch'
+    environment: staging
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: 🗄️ Run database migrations
+        run: |
+          echo "🗄️ Running staging database migrations..."
+          
+          # Check if migrations exist
+          if [ -d "migrations" ]; then
+            echo "📁 Migrations directory found"
+            
+            # Run migrations using our custom runner
+            if [ -f "migrations/run_migrations.py" ]; then
+              python migrations/run_migrations.py \
+                --environment=staging \
+                --database-url="${{ secrets.STAGING_DATABASE_URL }}"
+            else
+              echo "⚠️ No migration runner found, skipping migrations"
+            fi
+          else
+            echo "📁 No migrations directory found, skipping database changes"
+          fi
+
   # 🚀 STAGING DEPLOYMENT
   deploy-staging:
     name: 🚀 Deploy to Staging
     runs-on: ubuntu-latest
-    needs: build-container
+    needs: [build-container, migrate-staging-db]
     if: github.ref == 'refs/heads/develop' || github.event_name == 'workflow_dispatch'
     environment: staging
     steps:
@@ -215,11 +252,103 @@ jobs:
           sleep 30
           echo "✅ Staging deployment health check passed"
 
+  # 🗄️ DATABASE MIGRATION (PRODUCTION)
+  migrate-production-db:
+    name: 🗄️ Migrate Production Database
+    runs-on: ubuntu-latest
+    needs: [build-container, deploy-staging]
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+    environment: production
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: 🗄️ Backup production database
+        run: |
+          echo "🗄️ Creating production database backup..."
+          
+          # Create backup timestamp
+          BACKUP_TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          BACKUP_NAME="production_backup_${BACKUP_TIMESTAMP}"
+          
+          # Create backup (example for PostgreSQL)
+          if command -v pg_dump &> /dev/null; then
+            pg_dump "${{ secrets.PRODUCTION_DATABASE_URL }}" > "${BACKUP_NAME}.sql"
+            echo "✅ Production backup created: ${BACKUP_NAME}.sql"
+          else
+            echo "⚠️ pg_dump not available, skipping backup"
+          fi
+
+      - name: 🗄️ Run production migrations
+        run: |
+          echo "🗄️ Running production database migrations..."
+          
+          # Check if migrations exist
+          if [ -d "migrations" ]; then
+            echo "📁 Migrations directory found"
+            
+            # Run migrations using our custom runner
+            if [ -f "migrations/run_migrations.py" ]; then
+              # First do a dry run
+              python migrations/run_migrations.py \
+                --environment=production \
+                --database-url="${{ secrets.PRODUCTION_DATABASE_URL }}" \
+                --dry-run
+              
+              echo "✅ Dry run completed successfully"
+              
+              # Now run actual migrations
+              python migrations/run_migrations.py \
+                --environment=production \
+                --database-url="${{ secrets.PRODUCTION_DATABASE_URL }}"
+            else
+              echo "⚠️ No migration runner found, skipping migrations"
+            fi
+          else
+            echo "📁 No migrations directory found, skipping database changes"
+          fi
+
+      - name: 🧪 Verify production migration
+        run: |
+          echo "🧪 Verifying production migration..."
+          
+          # Run verification queries
+          python -c "
+          import os
+          import psycopg2
+          
+          try:
+              conn = psycopg2.connect('${{ secrets.PRODUCTION_DATABASE_URL }}')
+              cursor = conn.cursor()
+              
+              # Check if tables exist
+              cursor.execute(\"\"\"
+                  SELECT table_name 
+                  FROM information_schema.tables 
+                  WHERE table_schema = 'public'
+              \"\"\")
+              
+              tables = cursor.fetchall()
+              print(f'✅ Found {len(tables)} tables in production database')
+              
+              cursor.close()
+              conn.close()
+          except Exception as e:
+              print(f'❌ Verification failed: {e}')
+              exit(1)
+          "
+
   # 🚀 PRODUCTION DEPLOYMENT
   deploy-production:
     name: 🚀 Deploy to Production
     runs-on: ubuntu-latest
-    needs: [build-container, deploy-staging]
+    needs: [build-container, deploy-staging, migrate-production-db]
     if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
     environment: production
     steps:

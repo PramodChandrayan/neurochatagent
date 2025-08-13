@@ -8,3 +8,8 @@ numpy>=1.26.0
 
 # Production server
 gunicorn>=21.0.0
+
+# Database and migration dependencies
+psycopg2-binary>=2.9.0
+alembic>=1.12.0
+sqlalchemy>=2.0.0
