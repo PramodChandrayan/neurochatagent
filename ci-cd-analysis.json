@@ -1,0 +1,99 @@
+{
+  "project_info": {
+    "name": "Unknown",
+    "type": "Python",
+    "language": "Python",
+    "framework": "Streamlit",
+    "version": "Unknown",
+    "containerized": true,
+    "has_documentation": true
+  },
+  "dependencies": {
+    "python": [
+      "streamlit",
+      "openai",
+      "pinecone-client",
+      "python-dotenv",
+      "PyPDF2",
+      "numpy",
+      "gunicorn",
+      "psycopg2-binary",
+      "alembic",
+      "sqlalchemy"
+    ],
+    "node": [],
+    "system": [
+      "apt-get update && apt-get install -y \\"
+    ],
+    "database": [],
+    "cloud": []
+  },
+  "configuration": {
+    "env_files": [
+      ".env"
+    ],
+    "config_files": [
+      "config.py"
+    ],
+    "secrets_required": [
+      "OPENAI_API_KEY",
+      "PINECONE_API_KEY",
+      "OPENAI_API_KEY",
+      "PINECONE_API_KEY",
+      "OPENAI_API_KEY",
+      "PINECONE_API_KEY"
+    ],
+    "environment_variables": [
+      "OPENAI_API_KEY",
+      "PINECONE_API_KEY",
+      "OPENAI_API_KEY",
+      "OPENAI_MODEL",
+      "PINECONE_API_KEY",
+      "PINECONE_ENVIRONMENT",
+      "PINECONE_INDEX_NAME",
+      "PINECONE_NAMESPACE",
+      "DEBUG",
+      "MAX_CONTEXT_CHUNKS",
+      "CONFIDENCE_THRESHOLD",
+      "CHAT_STORAGE_DIR",
+      "ALLOWED_HOSTS",
+      "OPENAI_API_KEY",
+      "PINECONE_API_KEY"
+    ]
+  },
+  "testing": {
+    "framework": "Unknown",
+    "test_directory": "tests",
+    "coverage_tool": null,
+    "test_commands": [],
+    "has_tests": true
+  },
+  "deployment": {
+    "containerized": true,
+    "platform": "Google Cloud Run",
+    "deployment_files": [
+      "Dockerfile",
+      "deploy-cloud-run.sh"
+    ],
+    "infrastructure": "Unknown"
+  },
+  "security": {
+    "vulnerability_scanning": false,
+    "secret_scanning": false,
+    "dependency_checking": false,
+    "security_tools": []
+  },
+  "database": {
+    "type": "Unknown",
+    "migrations": true,
+    "orm": "SQLAlchemy",
+    "connection_strings": []
+  },
+  "ci_cd_requirements": {
+    "required_secrets": [],
+    "required_services": [],
+    "required_permissions": [],
+    "deployment_steps": [],
+    "customizations_needed": []
+  }
+}

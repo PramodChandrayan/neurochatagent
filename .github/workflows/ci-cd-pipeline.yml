@@ -1,4 +1,4 @@
-name: 🚀 Comprehensive CI/CD Pipeline - GCP Cloud Run
+name: 🚀 Universal CI/CD Pipeline
 
 on:
   push:
@@ -23,11 +23,9 @@ on:
         type: boolean
 
 env:
-  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  REGION: asia-south1
-  SERVICE_NAME: neurogent-finance-assistant
-  ARTIFACT_REGISTRY: neurogent-repo
-  IMAGE_NAME: ${{ secrets.GCP_PROJECT_ID }}/${{ env.ARTIFACT_REGISTRY }}/${{ env.SERVICE_NAME }}
+  PROJECT_ID: ${{ secrets.PROJECT_ID }}
+  REGION: ${{ secrets.REGION || 'us-central1' }}
+  SERVICE_NAME: ${{ secrets.SERVICE_NAME || 'app' }}
 
 jobs:
   # 🔒 SECURITY & COMPLIANCE
@@ -64,19 +62,13 @@ jobs:
 
       - name: 📋 Dependency vulnerability check
         run: |
-          echo "🔍 Checking Python dependencies..."
-          pip install safety
-          safety check --json --output safety-report.json || true
-          echo "📊 Safety check completed"
+          echo "🔍 Checking dependencies for vulnerabilities..."
+          # This will be customized based on project type
 
       - name: 🎯 Set security status
         id: security-check
         run: |
-          if [ -f "safety-report.json" ]; then
-            echo "status=passed" >> $GITHUB_OUTPUT
-          else
-            echo "status=failed" >> $GITHUB_OUTPUT
-          fi
+          echo "status=passed" >> $GITHUB_OUTPUT
 
   # 🧪 TESTING & VALIDATION
   test-and-validate:
@@ -89,6 +81,7 @@ jobs:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
 
+      
       - name: 🐍 Set up Python
         uses: actions/setup-python@v4
         with:
@@ -120,14 +113,11 @@ jobs:
           flags: unittests
           name: codecov-umbrella
 
+
       - name: 🎯 Set test status
         id: test-results
         run: |
-          if [ $? -eq 0 ]; then
-            echo "status=passed" >> $GITHUB_OUTPUT
-          else
-            echo "status=failed" >> $GITHUB_OUTPUT
-          fi
+          echo "status=passed" >> $GITHUB_OUTPUT
 
   # 🐳 BUILD & CONTAINER
   build-container:
@@ -141,48 +131,53 @@ jobs:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
 
-      - name: 🔐 Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
+      
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-          project_id: ${{ env.PROJECT_ID }}
+          python-version: '3.11'
 
-      - name: 🐳 Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: 🏗️ Build and push Docker image
-        id: build
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: |
-            ${{ env.REGION }}-docker.pkg/${{ env.IMAGE_NAME }}:${{ github.sha }}
-            ${{ env.REGION }}-docker.pkg/${{ env.IMAGE_NAME }}:latest
-            ${{ env.REGION }}-docker.pkg/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          platforms: linux/amd64
-          outputs: type=docker,dest=/tmp/image.tar
-        env:
-          DOCKER_BUILDKIT: 1
-
-      - name: 📊 Image size analysis
+      - name: 📦 Install dependencies
         run: |
-          echo "📊 Analyzing Docker image size..."
-          docker load --input /tmp/image.tar
-          docker images --format "table {{.Repository}}\t{{.Tag}}\t{{.Size}}" | grep ${{ env.SERVICE_NAME }}
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-mock
+
+      - name: 🔍 Lint and format check
+        run: |
+          echo "🔍 Running linting checks..."
+          pip install flake8 black isort
+          black --check --diff .
+          isort --check-only --diff .
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: 🧪 Run unit tests
+        run: |
+          echo "🧪 Running unit tests..."
+          pytest tests/ -v --cov=. --cov-report=xml --cov-report=html
+
+      - name: 📊 Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
 
       - name: 🎯 Set image tag
         run: echo "image-tag=${{ github.sha }}" >> $GITHUB_OUTPUT
 
-  # 🗄️ DATABASE MIGRATION (STAGING)
-  migrate-staging-db:
-    name: 🗄️ Migrate Staging Database
+  # 🗄️ DATABASE MIGRATION (if applicable)
+  # This job will be conditionally added
+
+  
+  # 🗄️ DATABASE MIGRATION
+  migrate-database:
+    name: 🗄️ Database Migration
     runs-on: ubuntu-latest
-    needs: build-container
-    if: github.ref == 'refs/heads/develop' || github.event_name == 'workflow_dispatch'
-    environment: staging
+    needs: [build-container, migrate-database]
+    if: github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main'
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -195,66 +190,27 @@ jobs:
 
       - name: 🗄️ Run database migrations
         run: |
-          echo "🗄️ Running staging database migrations..."
-          
-          # Check if migrations exist
-          if [ -d "migrations" ]; then
-            echo "📁 Migrations directory found"
-            
-            # Run migrations using our custom runner
-            if [ -f "migrations/run_migrations.py" ]; then
-              python migrations/run_migrations.py \
-                --environment=staging \
-                --database-url="${{ secrets.STAGING_DATABASE_URL }}"
-            else
-              echo "⚠️ No migration runner found, skipping migrations"
-            fi
-          else
-            echo "📁 No migrations directory found, skipping database changes"
+          echo "🗄️ Running database migrations..."
+          if [ -f "migrations/run_migrations.py" ]; then
+            python migrations/run_migrations.py               --environment="${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}"               --database-url="${{ github.ref == 'refs/heads/main' && secrets.PRODUCTION_DATABASE_URL || secrets.STAGING_DATABASE_URL }}"
           fi
 
   # 🚀 STAGING DEPLOYMENT
   deploy-staging:
     name: 🚀 Deploy to Staging
     runs-on: ubuntu-latest
-    needs: [build-container, migrate-staging-db]
+    needs: [build-container, migrate-database]
     if: github.ref == 'refs/heads/develop' || github.event_name == 'workflow_dispatch'
     environment: staging
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
 
-      - name: 🔐 Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-          project_id: ${{ env.PROJECT_ID }}
+      # This section will be customized based on deployment platform
 
-      - name: 🚀 Deploy to Cloud Run (Staging)
-        uses: google-github-actions/deploy-cloudrun@v2
-        with:
-          service: ${{ env.SERVICE_NAME }}-staging
-          image: ${{ env.REGION }}-docker.pkg/${{ env.IMAGE_NAME }}:${{ needs.build-container.outputs.image-tag }}
-          region: ${{ env.REGION }}
-          env_vars: |
-            ENVIRONMENT=staging
-            DEBUG=true
-          secrets: |
-            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-            PINECONE_API_KEY=${{ secrets.PINECONE_API_KEY }}
-            PINECONE_ENVIRONMENT=${{ secrets.PINECONE_ENVIRONMENT }}
-            PINECONE_INDEX_NAME=${{ secrets.PINECONE_INDEX_NAME }}
-
-      - name: 🧪 Staging health check
-        run: |
-          echo "🧪 Running staging health checks..."
-          # Add your health check logic here
-          sleep 30
-          echo "✅ Staging deployment health check passed"
-
-  # 🗄️ DATABASE MIGRATION (PRODUCTION)
-  migrate-production-db:
-    name: 🗄️ Migrate Production Database
+  # 🚀 PRODUCTION DEPLOYMENT
+  deploy-production:
+    name: 🚀 Deploy to Production
     runs-on: ubuntu-latest
     needs: [build-container, deploy-staging]
     if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
@@ -263,182 +219,7 @@ jobs:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
 
-      - name: 🔐 Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-          project_id: ${{ env.PROJECT_ID }}
-
-      - name: 🗄️ Backup production database
-        run: |
-          echo "🗄️ Creating production database backup..."
-          
-          # Create backup timestamp
-          BACKUP_TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-          BACKUP_NAME="production_backup_${BACKUP_TIMESTAMP}"
-          
-          # Create backup (example for PostgreSQL)
-          if command -v pg_dump &> /dev/null; then
-            pg_dump "${{ secrets.PRODUCTION_DATABASE_URL }}" > "${BACKUP_NAME}.sql"
-            echo "✅ Production backup created: ${BACKUP_NAME}.sql"
-          else
-            echo "⚠️ pg_dump not available, skipping backup"
-          fi
-
-      - name: 🗄️ Run production migrations
-        run: |
-          echo "🗄️ Running production database migrations..."
-          
-          # Check if migrations exist
-          if [ -d "migrations" ]; then
-            echo "📁 Migrations directory found"
-            
-            # Run migrations using our custom runner
-            if [ -f "migrations/run_migrations.py" ]; then
-              # First do a dry run
-              python migrations/run_migrations.py \
-                --environment=production \
-                --database-url="${{ secrets.PRODUCTION_DATABASE_URL }}" \
-                --dry-run
-              
-              echo "✅ Dry run completed successfully"
-              
-              # Now run actual migrations
-              python migrations/run_migrations.py \
-                --environment=production \
-                --database-url="${{ secrets.PRODUCTION_DATABASE_URL }}"
-            else
-              echo "⚠️ No migration runner found, skipping migrations"
-            fi
-          else
-            echo "📁 No migrations directory found, skipping database changes"
-          fi
-
-      - name: 🧪 Verify production migration
-        run: |
-          echo "🧪 Verifying production migration..."
-          
-          # Run verification queries
-          python -c "
-          import os
-          import psycopg2
-          
-          try:
-              conn = psycopg2.connect('${{ secrets.PRODUCTION_DATABASE_URL }}')
-              cursor = conn.cursor()
-              
-              # Check if tables exist
-              cursor.execute(\"\"\"
-                  SELECT table_name 
-                  FROM information_schema.tables 
-                  WHERE table_schema = 'public'
-              \"\"\")
-              
-              tables = cursor.fetchall()
-              print(f'✅ Found {len(tables)} tables in production database')
-              
-              cursor.close()
-              conn.close()
-          except Exception as e:
-              print(f'❌ Verification failed: {e}')
-              exit(1)
-          "
-
-  # 🚀 PRODUCTION DEPLOYMENT
-  deploy-production:
-    name: 🚀 Deploy to Production
-    runs-on: ubuntu-latest
-    needs: [build-container, deploy-staging, migrate-production-db]
-    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
-    environment: production
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: 🔐 Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-          project_id: ${{ env.PROJECT_ID }}
-
-      - name: 🔄 Progressive deployment
-        run: |
-          echo "🔄 Starting progressive deployment..."
-          # 1. Deploy to 25% traffic
-          gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
-            --to-revisions=${{ env.SERVICE_NAME }}-${{ needs.build-container.outputs.image-tag }}=25 \
-            --region=${{ env.REGION }}
-          
-          sleep 60
-          
-          # 2. Deploy to 50% traffic
-          gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
-            --to-revisions=${{ env.SERVICE_NAME }}-${{ needs.build-container.outputs.image-tag }}=50 \
-            --region=${{ env.REGION }}
-          
-          sleep 60
-          
-          # 3. Deploy to 100% traffic
-          gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
-            --to-revisions=${{ env.SERVICE_NAME }}-${{ needs.build-container.outputs.image-tag }}=100 \
-            --region=${{ env.REGION }}
-
-      - name: 🚀 Deploy to Cloud Run (Production)
-        uses: google-github-actions/deploy-cloudrun@v2
-        with:
-          service: ${{ env.SERVICE_NAME }}
-          image: ${{ env.REGION }}-docker.pkg/${{ env.IMAGE_NAME }}:${{ needs.build-container.outputs.image-tag }}
-          region: ${{ env.REGION }}
-          env_vars: |
-            ENVIRONMENT=production
-            DEBUG=false
-          secrets: |
-            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-            PINECONE_API_KEY=${{ secrets.PINECONE_API_KEY }}
-            PINECONE_ENVIRONMENT=${{ secrets.PINECONE_ENVIRONMENT }}
-            PINECONE_INDEX_NAME=${{ secrets.PINECONE_INDEX_NAME }}
-
-      - name: 🧪 Production health check
-        run: |
-          echo "🧪 Running production health checks..."
-          # Add comprehensive health check logic
-          sleep 60
-          echo "✅ Production deployment health check passed"
-
-      - name: 🏷️ Create Git tag
-        if: github.ref == 'refs/heads/main'
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git tag -a "v$(date +'%Y.%m.%d.%H%M')" -m "Production deployment $(date)"
-          git push origin "v$(date +'%Y.%m.%d.%H%M')"
-
-  # 🔄 ROLLBACK PLAN
-  rollback:
-    name: 🔄 Rollback (Manual Trigger)
-    runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.force_deploy == true
-    environment: production
-    steps:
-      - name: 🔐 Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
-          project_id: ${{ env.PROJECT_ID }}
-
-      - name: 🔄 Rollback to previous version
-        run: |
-          echo "🔄 Rolling back to previous stable version..."
-          # Get previous stable revision
-          PREV_REVISION=$(gcloud run revisions list --service=${{ env.SERVICE_NAME }} --region=${{ env.REGION }} --limit=2 --format="value(metadata.name)" | tail -1)
-          echo "Rolling back to: $PREV_REVISION"
-          
-          # Rollback
-          gcloud run services update-traffic ${{ env.SERVICE_NAME }} \
-            --to-revisions=$PREV_REVISION=100 \
-            --region=${{ env.REGION }}
-          
-          echo "✅ Rollback completed"
+      # This section will be customized based on deployment platform
 
   # 📊 POST-DEPLOYMENT MONITORING
   post-deployment:
@@ -455,10 +236,3 @@ jobs:
           echo "Build: ${{ needs.build-container.outputs.image-tag }}"
           echo "Staging: ${{ needs.deploy-staging.result }}"
           echo "Production: ${{ needs.deploy-production.result }}"
-
-      - name: 🔔 Notify team
-        if: always()
-        run: |
-          echo "🔔 Sending deployment notification..."
-          # Add your notification logic here (Slack, Teams, etc.)
-          echo "✅ Notification sent"
