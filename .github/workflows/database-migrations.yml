@@ -39,6 +39,12 @@ on:
         default: false
         type: boolean
 
+# 🔐 Required permissions for database operations
+permissions:
+  contents: read            # Required for reading repository contents
+  actions: read             # Required for accessing GitHub Actions
+  id-token: write           # Required for GCP authentication
+
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: asia-south1

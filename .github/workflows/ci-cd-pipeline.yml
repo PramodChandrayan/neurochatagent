@@ -22,6 +22,13 @@ on:
         default: false
         type: boolean
 
+# 🔐 Required permissions for security scanning and deployment
+permissions:
+  security-events: write    # Required for uploading security scan results
+  actions: read             # Required for accessing GitHub Actions
+  contents: read            # Required for reading repository contents
+  id-token: write           # Required for GCP authentication
+
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: ${{ secrets.REGION || 'asia-south1' }}
