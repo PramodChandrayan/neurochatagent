@@ -112,9 +112,11 @@ class TestSystemIntegration:
         ):
             # Reload the config module to pick up new environment variables
             import importlib
+
             import config
+
             importlib.reload(config)
-            
+
             assert config.config.OPENAI_API_KEY == "test_openai_key"
             assert config.config.PINECONE_API_KEY == "test_pinecone_key"
 
@@ -162,17 +164,21 @@ class TestSystemIntegration:
     def test_configuration_validation(self, temp_dir):
         """Test configuration validation"""
         from config import Config
-        
+
         # Test validation logic directly with missing values
-        test_config = type('TestConfig', (), {
-            'OPENAI_API_KEY': None,
-            'PINECONE_API_KEY': None,
-        })()
-        
+        test_config = type(
+            "TestConfig",
+            (),
+            {
+                "OPENAI_API_KEY": None,
+                "PINECONE_API_KEY": None,
+            },
+        )()
+
         # Test the validation logic
         required_vars = ["OPENAI_API_KEY", "PINECONE_API_KEY"]
         missing_vars = [var for var in required_vars if not getattr(test_config, var)]
-        
+
         assert len(missing_vars) == 2
         assert "OPENAI_API_KEY" in missing_vars
         assert "PINECONE_API_KEY" in missing_vars

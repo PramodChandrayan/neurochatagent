@@ -79,7 +79,10 @@ class TestFinanceChatbot:
 
         chatbot.client.chat.completions.create.return_value = mock_chat_response
 
-        context = [{"text": "context 1", "score": 0.9}, {"text": "context 2", "score": 0.8}]
+        context = [
+            {"text": "context 1", "score": 0.9},
+            {"text": "context 2", "score": 0.8},
+        ]
         result = chatbot.generate_response("test question", context)
 
         assert result == "AI response"
@@ -162,9 +165,7 @@ class TestFinanceChatbot:
 
     def test_response_generation_error_handling(self, chatbot):
         """Test error handling in response generation"""
-        chatbot.client.chat.completions.create.side_effect = Exception(
-            "OpenAI error"
-        )
+        chatbot.client.chat.completions.create.side_effect = Exception("OpenAI error")
 
         # Should return error message, not raise exception
         result = chatbot.generate_response("test question", [])
@@ -208,7 +209,7 @@ class TestFinanceChatbot:
                     "text": "test content",
                     "score": 0.95,
                     "chunk_index": 0,
-                    "source": "test.pdf"
+                    "source": "test.pdf",
                 }
             ]
         )
