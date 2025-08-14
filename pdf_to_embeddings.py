@@ -6,20 +6,17 @@ This script converts PDF documents to vectorized embeddings that can be used
 with Pinecone vector database for semantic search and retrieval.
 """
 
-import os
+import json
 import logging
+import os
 import re
 from pathlib import Path
-from typing import List, Dict, Any
-import json
+from typing import Any, Dict, List
 
-# PDF processing
-import PyPDF2
-
-# Embeddings and vector operations
+import numpy as np
 import openai
 import pinecone
-import numpy as np
+import PyPDF2
 from dotenv import load_dotenv
 
 # Configure logging

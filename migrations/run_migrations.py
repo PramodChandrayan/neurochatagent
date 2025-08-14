@@ -4,14 +4,15 @@
 Handles database schema changes, ORM migrations, and data integrity
 """
 
+import argparse
+import json
+import logging
 import os
 import sys
-import argparse
-import logging
-import psycopg2
 from datetime import datetime
-from typing import List, Dict, Any
-import json
+from typing import Any, Dict, List
+
+import psycopg2
 
 # Configure logging
 logging.basicConfig(

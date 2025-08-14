@@ -2,10 +2,11 @@
 Unit tests for finance_chatbot.py
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
 import os
 import sys
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))

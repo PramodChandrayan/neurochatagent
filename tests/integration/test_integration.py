@@ -2,12 +2,13 @@
 Integration tests for the complete system workflow
 """
 
-import pytest
 import os
+import shutil
 import sys
 import tempfile
-import shutil
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
+
+import pytest
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
@@ -175,9 +176,9 @@ class TestSystemIntegration:
         """Test chat session persistence functionality"""
         # Test chat session functions
         from streamlit_app import (
-            save_chat_session,
-            load_chat_session,
             list_chat_sessions,
+            load_chat_session,
+            save_chat_session,
         )
 
         # Mock session data

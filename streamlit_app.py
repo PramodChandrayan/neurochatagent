@@ -4,10 +4,12 @@ Finance Assistant Chatbot - Streamlit UI
 Simple ChatGPT-like interface with persistent chat memory
 """
 
-import streamlit as st
-import os
-import json
 import datetime
+import json
+import os
+
+import streamlit as st
+
 from finance_chatbot import FinanceChatbot
 
 # Page configuration

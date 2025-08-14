@@ -7,14 +7,15 @@ to answer questions about finance documents. It retrieves relevant context
 from the vector index and generates accurate, contextual responses.
 """
 
-import os
 import json
 import logging
-from typing import List, Dict, Any, Optional
-from dotenv import load_dotenv
+import os
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
 import openai
 import pinecone
-from datetime import datetime
+from dotenv import load_dotenv
 
 # Configure logging
 logging.basicConfig(

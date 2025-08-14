@@ -4,12 +4,12 @@
 Intelligently suggests secret values based on environment analysis
 """
 
-import os
 import json
-import subprocess
+import os
 import re
+import subprocess
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
 
 
 class SmartDefaults:

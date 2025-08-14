@@ -4,12 +4,12 @@
 Automatically detects project requirements, dependencies, and CI/CD needs
 """
 
-import os
+import ast
 import json
+import os
 import re
 from pathlib import Path
-from typing import Dict, List, Any, Optional
-import ast
+from typing import Any, Dict, List, Optional
 
 # Optional imports
 try:
