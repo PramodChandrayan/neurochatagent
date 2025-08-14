@@ -1,6 +1,7 @@
 """
 Integration tests for the complete system workflow
 """
+
 import pytest
 import os
 import sys
@@ -28,14 +29,14 @@ class TestSystemIntegration:
     @pytest.fixture
     def mock_openai(self):
         """Mock OpenAI client for integration tests"""
-        with patch('finance_chatbot.openai') as mock:
+        with patch("finance_chatbot.openai") as mock:
             mock.OpenAI.return_value = Mock()
             yield mock
 
     @pytest.fixture
     def mock_pinecone(self):
         """Mock Pinecone client for integration tests"""
-        with patch('finance_chatbot.pinecone') as mock:
+        with patch("finance_chatbot.pinecone") as mock:
             mock.init.return_value = None
             mock.Index.return_value = Mock()
             yield mock
@@ -60,7 +61,7 @@ class TestSystemIntegration:
             openai_api_key="test_key",
             pinecone_api_key="test_key",
             pinecone_environment="test_env",
-            pinecone_index_name="test_index"
+            pinecone_index_name="test_index",
         )
 
         # Test chatbot
@@ -68,12 +69,12 @@ class TestSystemIntegration:
             openai_api_key="test_key",
             pinecone_api_key="test_key",
             pinecone_environment="test_env",
-            pinecone_index_name="test_index"
+            pinecone_index_name="test_index",
         )
 
         # Test chat functionality
         result = chatbot.chat("test question")
-        
+
         assert result["response"] == "AI response"
         assert result["context"] is not None
         assert result["source"] is not None
@@ -83,14 +84,14 @@ class TestSystemIntegration:
         # Mock OpenAI to fail first, then succeed
         mock_openai.OpenAI.return_value.embeddings.create.side_effect = [
             Exception("API error"),  # First call fails
-            Mock(data=[Mock(embedding=[0.1, 0.2, 0.3)])  # Second call succeeds
+            Mock(data=[Mock(embedding=[0.1, 0.2, 0.3])]),  # Second call succeeds
         ]
 
         chatbot = FinanceChatbot(
             openai_api_key="test_key",
             pinecone_api_key="test_key",
             pinecone_environment="test_env",
-            pinecone_index_name="test_index"
+            pinecone_index_name="test_index",
         )
 
         # First call should fail
@@ -105,23 +106,27 @@ class TestSystemIntegration:
         """Test environment configuration loading"""
         # Test config loading
         from config import Config
-        
+
         # Mock environment variables
-        with patch.dict(os.environ, {
-            'OPENAI_API_KEY': 'test_openai_key',
-            'PINECONE_API_KEY': 'test_pinecone_key',
-            'PINECONE_ENVIRONMENT': 'test_env',
-            'PINECONE_INDEX_NAME': 'test_index'
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "OPENAI_API_KEY": "test_openai_key",
+                "PINECONE_API_KEY": "test_pinecone_key",
+                "PINECONE_ENVIRONMENT": "test_env",
+                "PINECONE_INDEX_NAME": "test_index",
+            },
+        ):
             config = Config()
-            assert config.openai.api_key == 'test_openai_key'
-            assert config.pinecone.api_key == 'test_pinecone_key'
+            assert config.openai.api_key == "test_openai_key"
+            assert config.pinecone.api_key == "test_pinecone_key"
 
     def test_streamlit_integration(self, temp_dir):
         """Test Streamlit app integration"""
         # Test that Streamlit app can be imported
         try:
             import streamlit_app
+
             assert True  # Import successful
         except ImportError as e:
             pytest.fail(f"Failed to import streamlit_app: {e}")
@@ -129,33 +134,38 @@ class TestSystemIntegration:
     def test_docker_integration(self, temp_dir):
         """Test Docker configuration"""
         # Test Dockerfile exists and is valid
-        dockerfile_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'Dockerfile')
+        dockerfile_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "Dockerfile"
+        )
         assert os.path.exists(dockerfile_path), "Dockerfile not found"
-        
+
         # Test Dockerfile content
-        with open(dockerfile_path, 'r') as f:
+        with open(dockerfile_path, "r") as f:
             content = f.read()
-            assert 'FROM python:3.11-slim' in content
-            assert 'EXPOSE 8080' in content
-            assert 'streamlit run streamlit_app.py' in content
+            assert "FROM python:3.11-slim" in content
+            assert "EXPOSE 8080" in content
+            assert "streamlit run streamlit_app.py" in content
 
     def test_requirements_integration(self, temp_dir):
         """Test requirements.txt integration"""
-        requirements_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'requirements.txt')
+        requirements_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+            "requirements.txt",
+        )
         assert os.path.exists(requirements_path), "requirements.txt not found"
-        
+
         # Test key dependencies
-        with open(requirements_path, 'r') as f:
+        with open(requirements_path, "r") as f:
             content = f.read()
-            assert 'streamlit' in content
-            assert 'openai' in content
-            assert 'pinecone-client' in content
-            assert 'python-dotenv' in content
+            assert "streamlit" in content
+            assert "openai" in content
+            assert "pinecone-client" in content
+            assert "python-dotenv" in content
 
     def test_configuration_validation(self, temp_dir):
         """Test configuration validation"""
         from config import Config
-        
+
         # Test with missing required fields
         with patch.dict(os.environ, {}, clear=True):
             with pytest.raises(ValueError):
@@ -164,73 +174,81 @@ class TestSystemIntegration:
     def test_chat_session_persistence(self, temp_dir):
         """Test chat session persistence functionality"""
         # Test chat session functions
-        from streamlit_app import save_chat_session, load_chat_session, list_chat_sessions
-        
+        from streamlit_app import (
+            save_chat_session,
+            load_chat_session,
+            list_chat_sessions,
+        )
+
         # Mock session data
         session_id = "test_session_123"
         messages = [{"role": "user", "content": "test question"}]
         title = "Test Session"
-        
+
         # Test save and load
         save_chat_session(session_id, messages, title)
         loaded_session = load_chat_session(session_id)
-        
+
         assert loaded_session["messages"] == messages
         assert loaded_session["title"] == title
 
     def test_health_check_endpoint(self, temp_dir):
         """Test health check functionality"""
         # Test that health check endpoint exists in Dockerfile
-        dockerfile_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'Dockerfile')
-        
-        with open(dockerfile_path, 'r') as f:
+        dockerfile_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "Dockerfile"
+        )
+
+        with open(dockerfile_path, "r") as f:
             content = f.read()
-            assert 'HEALTHCHECK' in content
-            assert 'curl -f http://localhost:8080/_stcore/health' in content
+            assert "HEALTHCHECK" in content
+            assert "curl -f http://localhost:8080/_stcore/health" in content
 
     def test_security_configuration(self, temp_dir):
         """Test security configuration"""
         # Test that no hardcoded secrets exist
         project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        
+
         # Check Python files for potential secrets
         python_files = []
         for root, dirs, files in os.walk(project_root):
             for file in files:
-                if file.endswith('.py'):
+                if file.endswith(".py"):
                     python_files.append(os.path.join(root, file))
-        
+
         # Check for common secret patterns
-        secret_patterns = ['sk-', 'pk_', 'Bearer ', 'Authorization:']
-        
+        secret_patterns = ["sk-", "pk_", "Bearer ", "Authorization:"]
+
         for file_path in python_files:
-            with open(file_path, 'r') as f:
+            with open(file_path, "r") as f:
                 content = f.read()
                 for pattern in secret_patterns:
-                    assert pattern not in content, f"Potential secret found in {file_path}"
+                    assert (
+                        pattern not in content
+                    ), f"Potential secret found in {file_path}"
 
     def test_performance_metrics(self, temp_dir, mock_openai, mock_pinecone):
         """Test performance metrics and monitoring"""
         # Mock timing for performance testing
         import time
-        
+
         chatbot = FinanceChatbot(
             openai_api_key="test_key",
             pinecone_api_key="test_key",
             pinecone_environment="test_env",
-            pinecone_index_name="test_index"
+            pinecone_index_name="test_index",
         )
-        
+
         # Mock OpenAI response
         mock_openai.OpenAI.return_value.chat.completions.create.return_value.choices = [
             Mock(message=Mock(content="Performance test response"))
         ]
-        
+
         # Test response time
         start_time = time.time()
         result = chatbot.chat("performance test question")
         end_time = time.time()
-        
+
         response_time = end_time - start_time
         assert response_time < 5.0  # Should respond within 5 seconds
         assert result["response"] == "Performance test response"

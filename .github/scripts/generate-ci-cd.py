@@ -16,18 +16,19 @@ try:
 except ImportError:
     yaml = None
 
+
 class CICDTemplateGenerator:
     """Generates customized CI/CD workflows based on project analysis"""
-    
+
     def __init__(self, analysis_file: str = "ci-cd-analysis.json"):
         self.analysis_file = analysis_file
         self.analysis = {}
         self.templates_dir = Path(__file__).parent.parent / "templates"
-        
+
     def load_analysis(self) -> bool:
         """Load project analysis"""
         try:
-            with open(self.analysis_file, 'r') as f:
+            with open(self.analysis_file, "r") as f:
                 self.analysis = json.load(f)
             print(f"✅ Loaded analysis from {self.analysis_file}")
             return True
@@ -37,15 +38,15 @@ class CICDTemplateGenerator:
         except json.JSONDecodeError:
             print(f"❌ Invalid JSON in {self.analysis_file}")
             return False
-    
+
     def generate_workflow(self) -> str:
         """Generate customized CI/CD workflow"""
         project_info = self.analysis.get("project_info", {})
         project_type = project_info.get("type", "Unknown")
-        
+
         # Load base template
         base_template = self._load_base_template()
-        
+
         # Customize based on project type
         if project_type == "Python":
             workflow = self._customize_python_workflow(base_template)
@@ -57,12 +58,12 @@ class CICDTemplateGenerator:
             workflow = self._customize_go_workflow(base_template)
         else:
             workflow = self._customize_generic_workflow(base_template)
-        
+
         # Add conditional jobs
         workflow = self._add_conditional_jobs(workflow)
-        
+
         return workflow
-    
+
     def _load_base_template(self) -> str:
         """Load base CI/CD template"""
         base_template = """name: 🚀 Universal CI/CD Pipeline
@@ -218,7 +219,7 @@ jobs:
           echo "Production: ${{ needs.deploy-production.result }}"
 """
         return base_template
-    
+
     def _customize_python_workflow(self, template: str) -> str:
         """Customize workflow for Python projects"""
         # Add Python-specific setup
@@ -254,10 +255,12 @@ jobs:
           flags: unittests
           name: codecov-umbrella
 """
-        
+
         # Replace placeholder in template
-        template = template.replace("# This section will be customized based on project type", python_setup)
-        
+        template = template.replace(
+            "# This section will be customized based on project type", python_setup
+        )
+
         # Add Python-specific build steps
         python_build = """
       - name: 🔐 Authenticate to Google Cloud
@@ -282,11 +285,13 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: linux/amd64
 """
-        
-        template = template.replace("# This section will be customized based on project type", python_build)
-        
+
+        template = template.replace(
+            "# This section will be customized based on project type", python_build
+        )
+
         return template
-    
+
     def _customize_nodejs_workflow(self, template: str) -> str:
         """Customize workflow for Node.js projects"""
         # Add Node.js-specific setup
@@ -313,9 +318,11 @@ jobs:
           npm test
           npm run test:coverage
 """
-        
-        template = template.replace("# This section will be customized based on project type", nodejs_setup)
-        
+
+        template = template.replace(
+            "# This section will be customized based on project type", nodejs_setup
+        )
+
         # Add Node.js-specific build steps
         nodejs_build = """
       - name: 🔐 Authenticate to Google Cloud
@@ -340,11 +347,13 @@ jobs:
           cache-to: type=gha,mode=max
           platforms: linux/amd64
 """
-        
-        template = template.replace("# This section will be customized based on project type", nodejs_build)
-        
+
+        template = template.replace(
+            "# This section will be customized based on project type", nodejs_build
+        )
+
         return template
-    
+
     def _customize_generic_workflow(self, template: str) -> str:
         """Customize workflow for generic projects"""
         # Add generic setup
@@ -373,11 +382,13 @@ jobs:
             mvn test
           fi
 """
-        
-        template = template.replace("# This section will be customized based on project type", generic_setup)
-        
+
+        template = template.replace(
+            "# This section will be customized based on project type", generic_setup
+        )
+
         return template
-    
+
     def _add_conditional_jobs(self, template: str) -> str:
         """Add conditional jobs based on project analysis"""
         # Add database migration job if needed
@@ -409,26 +420,32 @@ jobs:
               --database-url="${{ github.ref == 'refs/heads/main' && secrets.PRODUCTION_DATABASE_URL || secrets.STAGING_DATABASE_URL }}"
           fi
 """
-            
+
             # Insert migration job before staging deployment
-            template = template.replace("# 🚀 STAGING DEPLOYMENT", migration_job + "\n  # 🚀 STAGING DEPLOYMENT")
-            
+            template = template.replace(
+                "# 🚀 STAGING DEPLOYMENT", migration_job + "\n  # 🚀 STAGING DEPLOYMENT"
+            )
+
             # Update staging deployment to depend on migration
-            template = template.replace("needs: [build-container]", "needs: [build-container, migrate-database]")
-        
+            template = template.replace(
+                "needs: [build-container]", "needs: [build-container, migrate-database]"
+            )
+
         return template
-    
+
     def generate_deployment_config(self) -> str:
         """Generate deployment configuration file"""
-        deployment_platform = self.analysis.get("deployment", {}).get("platform", "Unknown")
-        
+        deployment_platform = self.analysis.get("deployment", {}).get(
+            "platform", "Unknown"
+        )
+
         if deployment_platform == "Google Cloud Run":
             return self._generate_gcp_deployment_config()
         elif deployment_platform == "Kubernetes":
             return self._generate_k8s_deployment_config()
         else:
             return self._generate_generic_deployment_config()
-    
+
     def _generate_gcp_deployment_config(self) -> str:
         """Generate GCP Cloud Run deployment configuration"""
         config = """# 🚀 GCP Cloud Run Deployment Configuration
@@ -476,7 +493,7 @@ optional_secrets:
   - SECRET_KEY
 """
         return config
-    
+
     def _generate_k8s_deployment_config(self) -> str:
         """Generate Kubernetes deployment configuration"""
         config = """# 🚀 Kubernetes Deployment Configuration
@@ -502,7 +519,7 @@ required_secrets:
   - IMAGE_TAG
 """
         return config
-    
+
     def _generate_generic_deployment_config(self) -> str:
         """Generate generic deployment configuration"""
         config = """# 🚀 Generic Deployment Configuration
@@ -526,7 +543,7 @@ required_config:
   - SERVICE_NAME
 """
         return config
-    
+
     def generate_setup_guide(self) -> str:
         """Generate setup guide for developers"""
         guide = f"""# 🚀 CI/CD Setup Guide for {self.analysis.get('project_info', {}).get('name', 'Your Project')}
@@ -591,76 +608,84 @@ For issues or questions:
 - Contact the DevOps team
 """
         return guide
-    
+
     def _format_secrets_list(self) -> str:
         """Format the list of required secrets"""
-        secrets = self.analysis.get("ci_cd_requirements", {}).get("required_secrets", [])
+        secrets = self.analysis.get("ci_cd_requirements", {}).get(
+            "required_secrets", []
+        )
         if not secrets:
             return "- No specific secrets required"
-        
+
         formatted = ""
         for secret in secrets:
             formatted += f"- `{secret}`\n"
         return formatted
-    
-    def save_workflow(self, workflow: str, output_file: str = ".github/workflows/ci-cd-pipeline.yml"):
+
+    def save_workflow(
+        self, workflow: str, output_file: str = ".github/workflows/ci-cd-pipeline.yml"
+    ):
         """Save the generated workflow"""
         # Ensure directory exists
         os.makedirs(os.path.dirname(output_file), exist_ok=True)
-        
-        with open(output_file, 'w') as f:
+
+        with open(output_file, "w") as f:
             f.write(workflow)
-        
+
         print(f"✅ Workflow saved to {output_file}")
-    
-    def save_deployment_config(self, config: str, output_file: str = "deployment-config.yml"):
+
+    def save_deployment_config(
+        self, config: str, output_file: str = "deployment-config.yml"
+    ):
         """Save the deployment configuration"""
-        with open(output_file, 'w') as f:
+        with open(output_file, "w") as f:
             f.write(config)
-        
+
         print(f"✅ Deployment config saved to {output_file}")
-    
+
     def save_setup_guide(self, guide: str, output_file: str = "CI-CD-SETUP.md"):
         """Save the setup guide"""
-        with open(output_file, 'w') as f:
+        with open(output_file, "w") as f:
             f.write(guide)
-        
+
         print(f"✅ Setup guide saved to {output_file}")
-    
+
     def generate_all(self):
         """Generate all CI/CD files"""
         if not self.load_analysis():
             return False
-        
+
         print("🚀 Generating CI/CD pipeline...")
-        
+
         # Generate workflow
         workflow = self.generate_workflow()
         self.save_workflow(workflow)
-        
+
         # Generate deployment config
         deployment_config = self.generate_deployment_config()
         self.save_deployment_config(deployment_config)
-        
+
         # Generate setup guide
         setup_guide = self.generate_setup_guide()
         self.save_setup_guide(setup_guide)
-        
+
         print("🎉 All CI/CD files generated successfully!")
         return True
 
 
 def main():
     """Main entry point"""
-    parser = argparse.ArgumentParser(description='Universal CI/CD Template Generator')
-    parser.add_argument('--analysis', '-a', default='ci-cd-analysis.json', help='Analysis file path')
-    parser.add_argument('--output-dir', '-o', default='.', help='Output directory')
-    
+    parser = argparse.ArgumentParser(description="Universal CI/CD Template Generator")
+    parser.add_argument(
+        "--analysis", "-a", default="ci-cd-analysis.json", help="Analysis file path"
+    )
+    parser.add_argument("--output-dir", "-o", default=".", help="Output directory")
+
     args = parser.parse_args()
-    
+
     # Change to output directory
     os.chdir(args.output_dir)
-    
+
     # Generate CI/CD files
     generator = CICDTemplateGenerator(args.analysis)
     if generator.generate_all():
@@ -668,7 +693,7 @@ def main():
         print("  - .github/workflows/ci-cd-pipeline.yml")
         print("  - deployment-config.yml")
         print("  - CI-CD-SETUP.md")
-        
+
         print("\n🚀 Next steps:")
         print("  1. Review the generated files")
         print("  2. Add required secrets to GitHub")

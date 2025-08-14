@@ -1,6 +1,7 @@
 """
 Unit tests for finance_chatbot.py
 """
+
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 import os
@@ -18,14 +19,14 @@ class TestFinanceChatbot:
     @pytest.fixture
     def mock_openai(self):
         """Mock OpenAI client"""
-        with patch('finance_chatbot.openai') as mock:
+        with patch("finance_chatbot.openai") as mock:
             mock.OpenAI.return_value = Mock()
             yield mock
 
     @pytest.fixture
     def mock_pinecone(self):
         """Mock Pinecone client"""
-        with patch('finance_chatbot.pinecone') as mock:
+        with patch("finance_chatbot.pinecone") as mock:
             mock.init.return_value = None
             mock.Index.return_value = Mock()
             yield mock
@@ -37,7 +38,7 @@ class TestFinanceChatbot:
             openai_api_key="test_key",
             pinecone_api_key="test_key",
             pinecone_environment="test_env",
-            pinecone_index_name="test_index"
+            pinecone_index_name="test_index",
         )
 
     def test_chatbot_initialization(self, chatbot):
@@ -50,11 +51,11 @@ class TestFinanceChatbot:
         """Test embedding generation"""
         mock_response = Mock()
         mock_response.data = [Mock(embedding=[0.1, 0.2, 0.3])]
-        
+
         chatbot.openai_client.embeddings.create.return_value = mock_response
-        
+
         result = chatbot.generate_embeddings("test text")
-        
+
         assert result == [0.1, 0.2, 0.3]
         chatbot.openai_client.embeddings.create.assert_called_once()
 
@@ -63,13 +64,13 @@ class TestFinanceChatbot:
         mock_query_response = Mock()
         mock_query_response.matches = [
             Mock(id="doc1", score=0.95, metadata={"text": "test content 1"}),
-            Mock(id="doc2", score=0.85, metadata={"text": "test content 2"})
+            Mock(id="doc2", score=0.85, metadata={"text": "test content 2"}),
         ]
-        
+
         chatbot.pinecone_index.query.return_value = mock_query_response
-        
+
         result = chatbot.search_pinecone([0.1, 0.2, 0.3], top_k=2)
-        
+
         assert len(result) == 2
         assert result[0]["id"] == "doc1"
         assert result[0]["score"] == 0.95
@@ -79,12 +80,12 @@ class TestFinanceChatbot:
         """Test response generation with context"""
         mock_chat_response = Mock()
         mock_chat_response.choices = [Mock(message=Mock(content="AI response"))]
-        
+
         chatbot.openai_client.chat.completions.create.return_value = mock_chat_response
-        
+
         context = [{"text": "context 1"}, {"text": "context 2"}]
         result = chatbot.generate_response("test question", context)
-        
+
         assert result == "AI response"
         chatbot.openai_client.chat.completions.create.assert_called_once()
 
@@ -92,27 +93,29 @@ class TestFinanceChatbot:
         """Test fallback response generation"""
         mock_chat_response = Mock()
         mock_chat_response.choices = [Mock(message=Mock(content="Fallback response"))]
-        
+
         chatbot.openai_client.chat.completions.create.return_value = mock_chat_response
-        
+
         result = chatbot.generate_fallback_response("test question")
-        
+
         assert result == "Fallback response"
         chatbot.openai_client.chat.completions.create.assert_called_once()
 
     def test_chat_with_context(self, chatbot):
         """Test chat method with context found"""
         # Mock search to return context
-        chatbot.search_pinecone = Mock(return_value=[
-            {"text": "context 1", "score": 0.9},
-            {"text": "context 2", "score": 0.8}
-        ])
-        
+        chatbot.search_pinecone = Mock(
+            return_value=[
+                {"text": "context 1", "score": 0.9},
+                {"text": "context 2", "score": 0.8},
+            ]
+        )
+
         # Mock response generation
         chatbot.generate_response = Mock(return_value="AI response with context")
-        
+
         result = chatbot.chat("test question")
-        
+
         assert result["response"] == "AI response with context"
         assert result["context"] is not None
         assert result["source"] is not None
@@ -121,12 +124,12 @@ class TestFinanceChatbot:
         """Test chat method without context"""
         # Mock search to return no context
         chatbot.search_pinecone = Mock(return_value=[])
-        
+
         # Mock fallback response
         chatbot.generate_fallback_response = Mock(return_value="Fallback response")
-        
+
         result = chatbot.chat("test question")
-        
+
         assert result["response"] == "Fallback response"
         assert result["context"] is None
         assert result["source"] is None
@@ -135,33 +138,35 @@ class TestFinanceChatbot:
         """Test error handling in chat method"""
         # Mock search to raise exception
         chatbot.search_pinecone = Mock(side_effect=Exception("Search failed"))
-        
+
         # Mock fallback response
         chatbot.generate_fallback_response = Mock(return_value="Error fallback")
-        
+
         result = chatbot.chat("test question")
-        
+
         assert result["response"] == "Error fallback"
         assert "error" in result
 
     def test_embedding_error_handling(self, chatbot):
         """Test error handling in embedding generation"""
         chatbot.openai_client.embeddings.create.side_effect = Exception("API error")
-        
+
         with pytest.raises(Exception):
             chatbot.generate_embeddings("test text")
 
     def test_pinecone_search_error_handling(self, chatbot):
         """Test error handling in Pinecone search"""
         chatbot.pinecone_index.query.side_effect = Exception("Pinecone error")
-        
+
         with pytest.raises(Exception):
             chatbot.search_pinecone([0.1, 0.2, 0.3])
 
     def test_response_generation_error_handling(self, chatbot):
         """Test error handling in response generation"""
-        chatbot.openai_client.chat.completions.create.side_effect = Exception("OpenAI error")
-        
+        chatbot.openai_client.chat.completions.create.side_effect = Exception(
+            "OpenAI error"
+        )
+
         with pytest.raises(Exception):
             chatbot.generate_response("test question", [])
 
@@ -170,7 +175,7 @@ class TestFinanceChatbot:
         # Test empty question
         result = chatbot.chat("")
         assert "error" in result or result["response"] is not None
-        
+
         # Test None question
         result = chatbot.chat(None)
         assert "error" in result or result["response"] is not None
@@ -178,15 +183,19 @@ class TestFinanceChatbot:
     def test_context_filtering(self, chatbot):
         """Test context filtering based on relevance scores"""
         # Mock search with low relevance scores
-        chatbot.search_pinecone = Mock(return_value=[
-            {"text": "context 1", "score": 0.3},  # Low score
-            {"text": "context 2", "score": 0.2}   # Very low score
-        ])
-        
-        chatbot.generate_fallback_response = Mock(return_value="Fallback due to low scores")
-        
+        chatbot.search_pinecone = Mock(
+            return_value=[
+                {"text": "context 1", "score": 0.3},  # Low score
+                {"text": "context 2", "score": 0.2},  # Very low score
+            ]
+        )
+
+        chatbot.generate_fallback_response = Mock(
+            return_value="Fallback due to low scores"
+        )
+
         result = chatbot.chat("test question")
-        
+
         # Should use fallback due to low relevance scores
         assert result["response"] == "Fallback due to low scores"
 
@@ -195,21 +204,17 @@ class TestFinanceChatbot:
         mock_query_response = Mock()
         mock_query_response.matches = [
             Mock(
-                id="doc1", 
-                score=0.95, 
-                metadata={
-                    "text": "test content",
-                    "filename": "test.pdf",
-                    "page": 1
-                }
+                id="doc1",
+                score=0.95,
+                metadata={"text": "test content", "filename": "test.pdf", "page": 1},
             )
         ]
-        
+
         chatbot.pinecone_index.query.return_value = mock_query_response
         chatbot.generate_response = Mock(return_value="AI response")
-        
+
         result = chatbot.chat("test question")
-        
+
         assert result["source"]["filename"] == "test.pdf"
         assert result["source"]["page"] == 1
 
