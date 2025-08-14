@@ -3,6 +3,11 @@
 Creates the basic tables for the finance chatbot system
 """
 
+import logging
+
+# Set up logger
+logger = logging.getLogger(__name__)
+
 
 def migrate(cursor, connection):
     """

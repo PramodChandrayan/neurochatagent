@@ -242,18 +242,17 @@ class MigrationRunner:
 
                     if "def rollback(" in migration_code:
                         # Execute rollback function
-                        exec(
-                            migration_code,
-                            {
-                                "cursor": cursor,
-                                "connection": self.connection,
-                                "logger": logger,
-                            },
-                        )
+                        migration_globals = {
+                            "cursor": cursor,
+                            "connection": self.connection,
+                            "logger": logger,
+                        }
+                        exec(migration_code, migration_globals)
 
-                        # Call rollback function
-                        if "rollback" in locals():
-                            rollback(cursor, self.connection)
+                        # Call rollback function if it exists
+                        if "rollback" in migration_globals:
+                            rollback_func = migration_globals["rollback"]
+                            rollback_func(cursor, self.connection)
                             logger.info(
                                 f"✅ Rollback function executed for {migration_name}"
                             )
