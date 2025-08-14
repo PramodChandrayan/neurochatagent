@@ -147,7 +147,7 @@ jobs:
     needs: [security-scan, test-and-validate]
     if: needs.security-scan.outputs.security-status == 'passed' && needs.test-and-validate.outputs.test-status == 'passed'
     outputs:
-      image-tag: ${{ steps.build.outputs.image-tag }}
+      image-tag: ${{ steps.skip-build.outputs.image-tag }}
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -155,7 +155,8 @@ jobs:
       - name: 🔐 Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
           project_id: ${{ env.PROJECT_ID }}
 
       - name: 🐳 Set up Docker Buildx
@@ -191,7 +192,8 @@ jobs:
       - name: 🔐 Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
           project_id: ${{ env.PROJECT_ID }}
 
       - name: 🗄️ Run database migrations
@@ -221,7 +223,8 @@ jobs:
       - name: 🔐 Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
           project_id: ${{ env.PROJECT_ID }}
 
       - name: 🚀 Deploy to Cloud Run (Staging)
@@ -266,7 +269,8 @@ jobs:
       - name: 🔐 Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
           project_id: ${{ env.PROJECT_ID }}
 
       - name: 🗄️ Backup production database
@@ -309,7 +313,7 @@ jobs:
   post-deployment:
     name: 📊 Post-Deployment Monitoring
     runs-on: ubuntu-latest
-    needs: [deploy-production, deploy-staging]
+    needs: [deploy-production, deploy-staging, build-container]
     if: always()
     steps:
       - name: 📊 Deployment status
@@ -317,7 +321,7 @@ jobs:
           echo "📊 Deployment Summary:"
           echo "Security Scan: ${{ needs.security-scan.outputs.security-status }}"
           echo "Tests: ${{ needs.test-and-validate.outputs.test-status }}"
-          echo "Build: ${{ needs.build-container.outputs.image-tag }}"
+          echo "Build: ${{ needs.build-container.outputs.image-tag || 'unknown' }}"
           echo "Staging: ${{ needs.deploy-staging.result }}"
           echo "Production: ${{ needs.deploy-production.result }}"
           
