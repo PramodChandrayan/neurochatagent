@@ -14,7 +14,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from finance_chatbot import FinanceChatbot
-from pdf_to_embeddings import PDFProcessor
+from pdf_to_embeddings import PDFToEmbeddingsConverter
 
 
 class TestSystemIntegration:
@@ -58,27 +58,23 @@ class TestSystemIntegration:
         ]
 
         # Test PDF processing
-        pdf_processor = PDFProcessor(
+        pdf_processor = PDFToEmbeddingsConverter(
             openai_api_key="test_key",
             pinecone_api_key="test_key",
-            pinecone_environment="test_env",
-            pinecone_index_name="test_index",
         )
 
         # Test chatbot
         chatbot = FinanceChatbot(
             openai_api_key="test_key",
             pinecone_api_key="test_key",
-            pinecone_environment="test_env",
-            pinecone_index_name="test_index",
         )
 
         # Test chat functionality
         result = chatbot.chat("test question")
 
         assert result["response"] == "AI response"
-        assert result["context"] is not None
-        assert result["source"] is not None
+        assert result["context_chunks"] is not None
+        assert result["context_sources"] is not None
 
     def test_error_recovery_workflow(self, temp_dir, mock_openai, mock_pinecone):
         """Test system recovery from errors"""
@@ -91,8 +87,6 @@ class TestSystemIntegration:
         chatbot = FinanceChatbot(
             openai_api_key="test_key",
             pinecone_api_key="test_key",
-            pinecone_environment="test_env",
-            pinecone_index_name="test_index",
         )
 
         # First call should fail
@@ -160,7 +154,7 @@ class TestSystemIntegration:
             content = f.read()
             assert "streamlit" in content
             assert "openai" in content
-            assert "pinecone-client" in content
+            assert "pinecone" in content
             assert "python-dotenv" in content
 
     def test_configuration_validation(self, temp_dir):
@@ -236,8 +230,6 @@ class TestSystemIntegration:
         chatbot = FinanceChatbot(
             openai_api_key="test_key",
             pinecone_api_key="test_key",
-            pinecone_environment="test_env",
-            pinecone_index_name="test_index",
         )
 
         # Mock OpenAI response
