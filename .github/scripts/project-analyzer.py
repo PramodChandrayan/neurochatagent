@@ -384,12 +384,15 @@ class ProjectAnalyzer:
         if self.analysis.get("deployment", {}).get("platform") == "Google Cloud Run":
             requirements["required_secrets"].extend([
                 "GCP_PROJECT_ID",
-                "GCP_SA_KEY"
+                "GCP_SA_KEY",
+                "REGION",
+                "SERVICE_NAME"
             ])
             requirements["required_permissions"].extend([
                 "Cloud Run Admin",
                 "Service Account User",
-                "Storage Admin"
+                "Storage Admin",
+                "Artifact Registry Admin"
             ])
             
         # Based on testing
@@ -401,6 +404,19 @@ class ProjectAnalyzer:
         if self.analysis.get("security", {}).get("vulnerability_scanning"):
             requirements["deployment_steps"].append("Security Scan")
             requirements["deployment_steps"].append("Dependency Check")
+            
+        # Add application-specific secrets from configuration analysis
+        config_secrets = self.analysis.get("configuration", {}).get("secrets_required", [])
+        if config_secrets:
+            requirements["required_secrets"].extend(config_secrets)
+            
+        # Add environment-specific secrets
+        requirements["required_secrets"].extend([
+            "OPENAI_API_KEY",
+            "PINECONE_API_KEY",
+            "PINECONE_ENVIRONMENT",
+            "PINECONE_INDEX_NAME"
+        ])
             
         return requirements
     

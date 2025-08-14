@@ -90,7 +90,12 @@
     "connection_strings": []
   },
   "ci_cd_requirements": {
-    "required_secrets": [],
+    "required_secrets": [
+      "OPENAI_API_KEY",
+      "PINECONE_API_KEY",
+      "PINECONE_ENVIRONMENT",
+      "PINECONE_INDEX_NAME"
+    ],
     "required_services": [],
     "required_permissions": [],
     "deployment_steps": [],
