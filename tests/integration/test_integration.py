@@ -136,7 +136,7 @@ class TestSystemIntegration:
             content = f.read()
             assert "FROM python:3.11-slim" in content
             assert "EXPOSE 8080" in content
-            assert "CMD [\"streamlit\", \"run\", \"streamlit_app.py\"" in content
+            assert 'CMD ["streamlit", "run", "streamlit_app.py"' in content
 
     def test_requirements_integration(self, temp_dir):
         """Test requirements.txt integration"""

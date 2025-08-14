@@ -57,10 +57,13 @@ class TestFinanceChatbot:
         mock_index = Mock()
         mock_query_response = Mock()
         mock_query_response.matches = [
-            Mock(score=0.9, metadata={"text": "test content", "chunk_index": 0, "source": "pdf"})
+            Mock(
+                score=0.9,
+                metadata={"text": "test content", "chunk_index": 0, "source": "pdf"},
+            )
         ]
         mock_index.query.return_value = mock_query_response
-        
+
         with patch("finance_chatbot.pinecone.Pinecone.Index", return_value=mock_index):
             result = chatbot.search_relevant_context("test query")
 
@@ -92,8 +95,6 @@ class TestFinanceChatbot:
 
         assert result == "Fallback response"
         chatbot.client.chat.completions.create.assert_called_once()
-
-
 
     def test_chat_with_context(self, chatbot):
         """Test chat method with context found"""
