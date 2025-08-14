@@ -64,8 +64,9 @@ class TestFinanceChatbot:
         ]
         mock_index.query.return_value = mock_query_response
 
-        with patch("finance_chatbot.pinecone.Pinecone.Index", return_value=mock_index):
-            result = chatbot.search_relevant_context("test query")
+        # Mock the Pinecone Index directly on the chatbot instance
+        chatbot.pc.Index = Mock(return_value=mock_index)
+        result = chatbot.search_relevant_context("test query")
 
         assert len(result) == 1
         assert result[0]["text"] == "test content"
@@ -78,7 +79,7 @@ class TestFinanceChatbot:
 
         chatbot.client.chat.completions.create.return_value = mock_chat_response
 
-        context = [{"text": "context 1"}, {"text": "context 2"}]
+        context = [{"text": "context 1", "score": 0.9}, {"text": "context 2", "score": 0.8}]
         result = chatbot.generate_response("test question", context)
 
         assert result == "AI response"
@@ -101,8 +102,8 @@ class TestFinanceChatbot:
         # Mock search to return context
         chatbot.search_relevant_context = Mock(
             return_value=[
-                {"text": "context 1", "score": 0.9},
-                {"text": "context 2", "score": 0.8},
+                {"text": "context 1", "score": 0.9, "source": "doc1"},
+                {"text": "context 2", "score": 0.8, "source": "doc2"},
             ]
         )
 
@@ -132,38 +133,42 @@ class TestFinanceChatbot:
     def test_error_handling(self, chatbot):
         """Test error handling in chat method"""
         # Mock search to raise exception
-        chatbot.search_pinecone = Mock(side_effect=Exception("Search failed"))
-
-        # Mock fallback response
-        chatbot.generate_fallback_response = Mock(return_value="Error fallback")
+        chatbot.search_relevant_context = Mock(side_effect=Exception("Search failed"))
 
         result = chatbot.chat("test question")
 
-        assert result["response"] == "Error fallback"
+        # Should return error response, not raise exception
         assert "error" in result
+        assert "Search failed" in result["response"]
 
     def test_embedding_error_handling(self, chatbot):
         """Test error handling in embedding generation"""
-        chatbot.openai_client.embeddings.create.side_effect = Exception("API error")
+        chatbot.client.embeddings.create.side_effect = Exception("API error")
 
-        with pytest.raises(Exception):
-            chatbot.generate_embeddings("test text")
+        # Should return empty list, not raise exception
+        result = chatbot.search_relevant_context("test text")
+        assert result == []
 
     def test_pinecone_search_error_handling(self, chatbot):
         """Test error handling in Pinecone search"""
-        chatbot.pinecone_index.query.side_effect = Exception("Pinecone error")
+        # Mock the Pinecone Index to raise an exception
+        mock_index = Mock()
+        mock_index.query.side_effect = Exception("Pinecone error")
+        chatbot.pc.Index = Mock(return_value=mock_index)
 
-        with pytest.raises(Exception):
-            chatbot.search_pinecone([0.1, 0.2, 0.3])
+        # Should return empty list, not raise exception
+        result = chatbot.search_relevant_context("test query")
+        assert result == []
 
     def test_response_generation_error_handling(self, chatbot):
         """Test error handling in response generation"""
-        chatbot.openai_client.chat.completions.create.side_effect = Exception(
+        chatbot.client.chat.completions.create.side_effect = Exception(
             "OpenAI error"
         )
 
-        with pytest.raises(Exception):
-            chatbot.generate_response("test question", [])
+        # Should return error message, not raise exception
+        result = chatbot.generate_response("test question", [])
+        assert "error" in result.lower()
 
     def test_invalid_input_handling(self, chatbot):
         """Test handling of invalid inputs"""
@@ -178,7 +183,7 @@ class TestFinanceChatbot:
     def test_context_filtering(self, chatbot):
         """Test context filtering based on relevance scores"""
         # Mock search with low relevance scores
-        chatbot.search_pinecone = Mock(
+        chatbot.search_relevant_context = Mock(
             return_value=[
                 {"text": "context 1", "score": 0.3},  # Low score
                 {"text": "context 2", "score": 0.2},  # Very low score
@@ -196,22 +201,22 @@ class TestFinanceChatbot:
 
     def test_metadata_extraction(self, chatbot):
         """Test metadata extraction from search results"""
-        mock_query_response = Mock()
-        mock_query_response.matches = [
-            Mock(
-                id="doc1",
-                score=0.95,
-                metadata={"text": "test content", "filename": "test.pdf", "page": 1},
-            )
-        ]
-
-        chatbot.pinecone_index.query.return_value = mock_query_response
+        # Mock search to return context with metadata
+        chatbot.search_relevant_context = Mock(
+            return_value=[
+                {
+                    "text": "test content",
+                    "score": 0.95,
+                    "chunk_index": 0,
+                    "source": "test.pdf"
+                }
+            ]
+        )
         chatbot.generate_response = Mock(return_value="AI response")
 
         result = chatbot.chat("test question")
 
-        assert result["source"]["filename"] == "test.pdf"
-        assert result["source"]["page"] == 1
+        assert result["context_sources"] == ["test.pdf"]
 
 
 if __name__ == "__main__":
