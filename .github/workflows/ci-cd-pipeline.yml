@@ -147,7 +147,7 @@ jobs:
     needs: [security-scan, test-and-validate]
     if: needs.security-scan.outputs.security-status == 'passed' && needs.test-and-validate.outputs.test-status == 'passed'
     outputs:
-      image-tag: ${{ steps.skip-build.outputs.image-tag }}
+      image-tag: ${{ steps.build.outputs.image-tag }}
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
@@ -200,9 +200,14 @@ jobs:
         run: |
           echo "🗄️ Running database migrations..."
           if [ -f "migrations/run_migrations.py" ]; then
-            python migrations/run_migrations.py \
-              --environment="${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}" \
-              --database-url="${{ github.ref == 'refs/heads/main' && secrets.PRODUCTION_DATABASE_URL || secrets.STAGING_DATABASE_URL }}"
+            # Check if database URLs are configured
+            if [ -n "${{ github.ref == 'refs/heads/main' && secrets.PRODUCTION_DATABASE_URL || secrets.STAGING_DATABASE_URL }}" ]; then
+              python migrations/run_migrations.py \
+                --environment="${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}" \
+                --database-url="${{ github.ref == 'refs/heads/main' && secrets.PRODUCTION_DATABASE_URL || secrets.STAGING_DATABASE_URL }}"
+            else
+              echo "⚠️ No database URLs configured, skipping database migrations"
+            fi
           else
             echo "⚠️ No migration runner found, skipping database changes"
           fi
@@ -240,7 +245,7 @@ jobs:
             PINECONE_API_KEY=${{ secrets.PINECONE_API_KEY }}
             PINECONE_ENVIRONMENT=${{ secrets.PINECONE_ENVIRONMENT }}
             PINECONE_INDEX_NAME=${{ secrets.PINECONE_INDEX_NAME }}
-            DATABASE_URL=${{ secrets.STAGING_DATABASE_URL }}
+            DATABASE_URL=${{ secrets.STAGING_DATABASE_URL || '' }}
 
       - name: 🧪 Health check staging deployment
         run: |
@@ -296,7 +301,7 @@ jobs:
             PINECONE_API_KEY=${{ secrets.PINECONE_API_KEY }}
             PINECONE_ENVIRONMENT=${{ secrets.PINECONE_ENVIRONMENT }}
             PINECONE_INDEX_NAME=${{ secrets.PINECONE_INDEX_NAME }}
-            DATABASE_URL=${{ secrets.PRODUCTION_DATABASE_URL }}
+            DATABASE_URL=${{ secrets.PRODUCTION_DATABASE_URL || '' }}
 
       - name: 🧪 Health check production deployment
         run: |
