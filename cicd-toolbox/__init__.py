@@ -15,11 +15,7 @@ __author__ = "Intelligent CI/CD Toolbox Team"
 __description__ = "Project-agnostic CI/CD automation toolbox with intelligent analysis"
 
 from .analyzer import IntelligentProjectAnalyzer
-from .toolbox import IntelligentCICDToolbox
 from .gui import EnhancedCICDGUI
+from .toolbox import IntelligentCICDToolbox
 
-__all__ = [
-    "IntelligentProjectAnalyzer",
-    "IntelligentCICDToolbox", 
-    "EnhancedCICDGUI"
-]
+__all__ = ["IntelligentProjectAnalyzer", "IntelligentCICDToolbox", "EnhancedCICDGUI"]
