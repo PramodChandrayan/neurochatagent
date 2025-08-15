@@ -1,164 +1,141 @@
-# 🚀 NeuroGent Finance Assistant
+# 🧠 NeuroGent Finance Assistant
 
-A sophisticated AI-powered financial knowledge base chatbot built with Streamlit, OpenAI, and Pinecone vector database.
+An intelligent finance chatbot powered by OpenAI and Pinecone, with automated CI/CD deployment to Google Cloud Platform.
 
 ## ✨ Features
 
-- **📚 PDF Processing**: Convert financial documents to searchable embeddings
-- **🧠 AI Chatbot**: Intelligent responses using OpenAI GPT-4 with RAG (Retrieval-Augmented Generation)
-- **🔍 Vector Search**: Fast semantic search using Pinecone vector database
-- **💬 Persistent Chat**: Save and restore chat sessions
-- **🎨 Modern UI**: ChatGPT-like interface built with Streamlit
-- **☁️ Cloud Ready**: Deployable to Google Cloud Run
-
-## 🏗️ Architecture
-
-```
-User Query → Streamlit UI → OpenAI GPT-4 → Pinecone Vector Search → Context Retrieval → Response Generation
-```
-
-## 🛠️ Tech Stack
-
-- **Frontend**: Streamlit
-- **AI/LLM**: OpenAI GPT-4
-- **Vector Database**: Pinecone
-- **PDF Processing**: PyPDF2
-- **Backend**: Python 3.11
-- **Deployment**: Docker + Google Cloud Run
-- **Region**: Asia-south1 (Mumbai)
-
-## 📋 Prerequisites
-
-- Python 3.11+
-- OpenAI API Key
-- Pinecone API Key
-- Google Cloud Project (for deployment)
+- **🤖 AI-Powered Finance Assistant**: Built with OpenAI GPT models
+- **🔍 Document Intelligence**: PDF processing and semantic search with Pinecone
+- **🌐 Web Interface**: Modern Streamlit-based user interface
+- **🚀 Automated Deployment**: Full CI/CD pipeline with GitHub Actions
+- **☁️ Cloud-Native**: Deployed on Google Cloud Run
 
 ## 🚀 Quick Start
 
-### 1. Clone the Repository
+### Local Development
+
+1. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. **Set up environment variables:**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your API keys
+   ```
+
+3. **Run the chatbot:**
+   ```bash
+   streamlit run streamlit_app.py
+   ```
+
+### CI/CD Toolbox
+
+For automated deployment setup:
+
 ```bash
-git clone https://github.com/PramodChandrayan/neurochatagent.git
-cd neurochatagent
+cd cicd-toolbox
+./launch.sh
 ```
 
-### 2. Install Dependencies
-```bash
-pip install -r requirements.txt
-```
+## 📋 Prerequisites
 
-### 3. Set Environment Variables
-Create a `.env` file:
-```env
-OPENAI_API_KEY=your_openai_api_key
-PINECONE_API_KEY=your_pinecone_api_key
-PINECONE_ENVIRONMENT=your_pinecone_environment
-PINECONE_INDEX_NAME=your_pinecone_index_name
-```
+- Python 3.8+
+- OpenAI API key
+- Pinecone API key and index
+- Google Cloud Platform account (for deployment)
 
-### 4. Run Locally
-```bash
-streamlit run streamlit_app.py
-```
+## 🏗️ Architecture
 
-## 📖 Usage
-
-### 1. Upload PDF Documents
-- Use the sidebar to upload financial PDF documents
-- The system will automatically process and create embeddings
-
-### 2. Chat with Your Knowledge Base
-- Ask questions about your financial documents
-- Get intelligent, context-aware responses
-- View source documents and confidence scores
-
-### 3. Manage Chat Sessions
-- Start new conversations
-- View chat history
-- Delete old sessions
-
-## 🐳 Docker Deployment
-
-### Build and Run Locally
-```bash
-docker build -t neurogent-finance-assistant .
-docker run -p 8080:8080 neurogent-finance-assistant
-```
-
-### Deploy to Google Cloud Run
-```bash
-chmod +x deploy-cloud-run.sh
-./deploy-cloud-run.sh
-```
-
-## 🔧 Configuration
-
-Key configuration options in `config.py`:
-- OpenAI model selection
-- Pinecone index settings
-- Chat parameters
-- File storage settings
+- **Frontend**: Streamlit web interface
+- **AI Engine**: OpenAI GPT models
+- **Vector Database**: Pinecone for semantic search
+- **Deployment**: Google Cloud Run via CI/CD pipeline
+- **CI/CD**: GitHub Actions with Workload Identity Federation
 
 ## 📁 Project Structure
 
 ```
-neurochatagent/
-├── streamlit_app.py          # Main Streamlit application
-├── finance_chatbot.py        # Core chatbot logic
-├── pdf_to_embeddings.py      # PDF processing and embedding
-├── config.py                 # Configuration management
-├── requirements.txt          # Python dependencies
-├── Dockerfile               # Docker configuration
-├── deploy-cloud-run.sh      # GCP deployment script
-├── README.md                # This file
-└── chats/                   # Chat session storage
+├── finance_chatbot.py          # Core chatbot logic
+├── streamlit_app.py            # Web interface
+├── pdf_to_embeddings.py        # PDF processing
+├── config.py                   # Configuration management
+├── requirements.txt            # Python dependencies
+├── Dockerfile                  # Container configuration
+├── cicd-toolbox/              # CI/CD automation toolbox
+│   ├── intelligent-cicd-toolbox-v2.py
+│   ├── launch.sh
+│   └── README.md
+├── .github/workflows/          # CI/CD pipeline definitions
+└── tests/                      # Test suite
 ```
 
-## 🔐 Security
+## 🔧 Configuration
 
-- Environment variables for sensitive data
-- No hardcoded API keys
-- Secure Docker configuration
-- Production-ready deployment
+### Environment Variables
 
-## 🚀 Deployment
+Create a `.env` file with:
 
-### Google Cloud Run
-1. Enable required APIs
-2. Set up Artifact Registry
-3. Configure IAM permissions
-4. Run deployment script
+```env
+OPENAI_API_KEY=your_openai_key
+PINECONE_API_KEY=your_pinecone_key
+PINECONE_ENVIRONMENT=your_environment
+PINECONE_INDEX_NAME=your_index_name
+CHUNK_SIZE=1000
+CHUNK_OVERLAP=200
+```
 
-### Environment Variables for Production
-- `OPENAI_API_KEY`: Your OpenAI API key
-- `PINECONE_API_KEY`: Your Pinecone API key
-- `PINECONE_ENVIRONMENT`: Pinecone environment
-- `PINECONE_INDEX_NAME`: Pinecone index name
+### GCP Deployment
+
+The CI/CD pipeline automatically:
+- Builds and pushes Docker images
+- Deploys to Cloud Run
+- Manages environment variables
+- Handles scaling and monitoring
+
+## 🧪 Testing
+
+Run the test suite:
+
+```bash
+pytest tests/ -v
+```
+
+## 📊 Monitoring
+
+- **Application**: Cloud Run metrics and logs
+- **Pipeline**: GitHub Actions workflow status
+- **Toolbox**: Live monitoring dashboard
+
+## 🚨 Troubleshooting
+
+### Common Issues
+
+1. **API Key Errors**: Verify environment variables are set correctly
+2. **Pinecone Connection**: Check API key and environment settings
+3. **Deployment Failures**: Use the CI/CD toolbox for diagnostics
+
+### Getting Help
+
+- Check the CI/CD toolbox for deployment issues
+- Review GitHub Actions workflow logs
+- Verify GCP service account permissions
 
 ## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Submit a pull request
+4. Add tests if applicable
+5. Submit a pull request
 
 ## 📄 License
 
-This project is licensed under the MIT License.
+This project is part of the NeuroGent Finance Assistant platform.
 
-## 🆘 Support
+## 🔗 Links
 
-For support and questions:
-- Create an issue on GitHub
-- Contact: hello@neurogent.ai
-
-## 🔄 Updates
-
-- **v1.0.0**: Initial release with basic functionality
-- **v1.1.0**: Added persistent chat sessions
-- **v1.2.0**: Enhanced UI with ChatGPT-like design
-- **v1.3.0**: Production deployment to Google Cloud Run
-
----
-
-Built with ❤️ by [NeuroGent](https://neurogent.ai)
+- [CI/CD Toolbox Documentation](cicd-toolbox/README.md)
+- [Deployment Guide](DEPLOYMENT-READINESS-CHECKLIST.md)
+- [Required Secrets](REQUIRED-SECRETS.md)
