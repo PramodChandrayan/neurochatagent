@@ -42,6 +42,19 @@ st.markdown("""
         border-color: #ffc107;
         background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
     }
+    .pipeline-status {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-radius: 10px;
+        padding: 1rem;
+        margin: 1rem 0;
+        border-left: 4px solid #007bff;
+    }
+    .pipeline-metrics {
+        background: white;
+        border-radius: 8px;
+        padding: 0.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -51,6 +64,14 @@ class IntelligentCICDToolbox:
         self.gcp_setup_done = False
         self.secrets_configured = False
         self.pipeline_status = "idle"
+        self.pipeline_details = {
+            "last_run": None,
+            "commit_sha": None,
+            "branch": None,
+            "status": "idle",
+            "logs": [],
+            "duration": None
+        }
         
     def smart_authentication_check(self):
         """Intelligently check authentication"""
@@ -242,6 +263,20 @@ class IntelligentCICDToolbox:
                 st.error("❌ Not in git repository")
                 return False
             
+            # Get current commit info
+            commit_result = subprocess.run(['git', 'rev-parse', 'HEAD'], capture_output=True, text=True, check=True)
+            commit_sha = commit_result.stdout.strip()[:8]
+            
+            # Update pipeline details
+            self.pipeline_details.update({
+                "last_run": datetime.now().isoformat(),
+                "commit_sha": commit_sha,
+                "branch": "main",
+                "status": "triggered",
+                "logs": [f"🚀 Pipeline triggered at {datetime.now().strftime('%H:%M:%S')}"],
+                "duration": None
+            })
+            
             # Push to trigger
             subprocess.run(['git', 'add', '.'])
             subprocess.run(['git', 'commit', '-m', '🤖 Auto-commit for CI/CD'])
@@ -249,11 +284,138 @@ class IntelligentCICDToolbox:
             
             st.success("✅ Pipeline triggered!")
             self.pipeline_status = "running"
+            self.pipeline_details["status"] = "running"
+            self.pipeline_details["logs"].append(f"📤 Code pushed to GitHub at {datetime.now().strftime('%H:%M:%S')}")
+            
             return True
             
         except Exception as e:
             st.error(f"❌ Pipeline trigger failed: {str(e)}")
+            self.pipeline_details["status"] = "failed"
+            self.pipeline_details["logs"].append(f"❌ Pipeline trigger failed: {str(e)}")
             return False
+    
+    def get_live_pipeline_status(self):
+        """Get live pipeline status from GitHub Actions"""
+        try:
+            # First check if we're in a git repository and have GitHub access
+            git_result = subprocess.run(['git', 'remote', 'get-url', 'origin'], 
+                                      capture_output=True, text=True, check=True)
+            
+            if 'github.com' not in git_result.stdout:
+                self.pipeline_details["logs"].append("ℹ️ Not a GitHub repository")
+                return None
+            
+            # Check if there are any workflow runs
+            try:
+                result = subprocess.run([
+                    'gh', 'run', 'list', '--limit', '1', '--json', 'status,conclusion,startedAt,completedAt,headSha,headBranch'
+                ], capture_output=True, text=True, check=True)
+                
+                if result.stdout.strip():
+                    import json
+                    runs = json.loads(result.stdout)
+                    if runs:
+                        run = runs[0]
+                        
+                        # Update pipeline details
+                        self.pipeline_details.update({
+                            "status": run.get('status', 'unknown'),
+                            "conclusion": run.get('conclusion', 'unknown'),
+                            "last_run": run.get('startedAt', self.pipeline_details["last_run"]),
+                            "commit_sha": run.get('headSha', '')[:8] if run.get('headSha') else None,
+                            "branch": run.get('headBranch', 'main')
+                        })
+                        
+                        # Calculate duration if completed
+                        if run.get('startedAt') and run.get('completedAt'):
+                            start_time = datetime.fromisoformat(run['startedAt'].replace('Z', '+00:00'))
+                            end_time = datetime.fromisoformat(run['completedAt'].replace('Z', '+00:00'))
+                            duration = end_time - start_time
+                            self.pipeline_details["duration"] = str(duration).split('.')[0]
+                        
+                        # Add status to logs
+                        status_msg = f"🔄 Workflow {run.get('status', 'unknown')}"
+                        if run.get('conclusion'):
+                            status_msg += f" - {run.get('conclusion', 'unknown')}"
+                        
+                        if status_msg not in self.pipeline_details["logs"]:
+                            self.pipeline_details["logs"].append(status_msg)
+                        
+                        return run
+                    else:
+                        # No workflow runs yet
+                        self.pipeline_details.update({
+                            "status": "no_runs",
+                            "conclusion": None,
+                            "last_run": None,
+                            "commit_sha": None,
+                            "branch": "main"
+                        })
+                        
+                        if "No workflow runs found" not in self.pipeline_details["logs"]:
+                            self.pipeline_details["logs"].append("ℹ️ No workflow runs found yet")
+                        
+                        return None
+                        
+            except subprocess.CalledProcessError as e:
+                if "no runs found" in e.stderr.lower() or "no workflows" in e.stderr.lower():
+                    # No workflow runs yet - this is normal for new repositories
+                    self.pipeline_details.update({
+                        "status": "no_runs",
+                        "conclusion": None,
+                        "last_run": None,
+                        "commit_sha": None,
+                        "branch": "main"
+                    })
+                    
+                    if "No workflow runs found" not in self.pipeline_details["logs"]:
+                        self.pipeline_details["logs"].append("ℹ️ No workflow runs found yet")
+                    
+                    return None
+                else:
+                    # Other error
+                    raise e
+                    
+        except subprocess.CalledProcessError as e:
+            self.pipeline_details["logs"].append(f"⚠️ Git repository check failed: {e.stderr}")
+        except Exception as e:
+            self.pipeline_details["logs"].append(f"⚠️ Status check failed: {str(e)}")
+        
+        return None
+    
+    def get_workflow_logs(self):
+        """Get detailed workflow logs"""
+        try:
+            # Check if there are any workflow runs
+            result = subprocess.run([
+                'gh', 'run', 'list', '--limit', '1', '--json', 'id'
+            ], capture_output=True, text=True, check=True)
+            
+            if result.stdout.strip():
+                import json
+                runs = json.loads(result.stdout)
+                if runs:
+                    run_id = runs[0]['id']
+                    
+                    # Get logs for this run
+                    logs_result = subprocess.run([
+                        'gh', 'run', 'view', str(run_id), '--log'
+                    ], capture_output=True, text=True, check=True)
+                    
+                    return logs_result.stdout
+                else:
+                    return "No workflow runs found yet"
+            else:
+                return "No workflow runs found yet"
+                    
+        except subprocess.CalledProcessError as e:
+            if "no runs found" in e.stderr.lower() or "no workflows" in e.stderr.lower():
+                return "No workflow runs found yet. This is normal for new repositories."
+            else:
+                return f"Could not fetch logs: {e.stderr}"
+        except Exception as e:
+            return f"Could not fetch logs: {str(e)}"
 
 def main():
     st.markdown('<div class="main-header"><h1>🚀 Intelligent CI/CD Toolbox</h1><p>Fully Automated Deployment</p></div>', unsafe_allow_html=True)
@@ -303,7 +465,8 @@ def main():
         # Project ID input
         project_id = st.text_input("🔑 Enter your GCP Project ID:", 
                                   value=toolbox.project_id or "neurofinance-468916",
-                                  help="Enter your Google Cloud Project ID")
+                                  help="Enter your Google Cloud Project ID",
+                                  key="project_id_input")
         
         if project_id and project_id != toolbox.project_id:
             toolbox.project_id = project_id
@@ -338,13 +501,94 @@ def main():
     elif toolbox.secrets_configured:
         st.markdown('<div class="step-box step-success"><h3>✅ GitHub Secrets Configured</h3></div>', unsafe_allow_html=True)
     
-    # Step 4: Pipeline Control
+    # Step 4: Pipeline Control & Live Status
     if toolbox.secrets_configured:
-        st.markdown('<div class="step-box"><h3>🚀 Step 4: Pipeline Control</h3></div>', unsafe_allow_html=True)
+        st.markdown('<div class="step-box"><h3>🚀 Step 4: Pipeline Control & Live Monitoring</h3></div>', unsafe_allow_html=True)
         
-        if st.button("🚀 **Trigger Pipeline**", type="primary", key="trigger"):
-            toolbox.trigger_pipeline()
-            st.rerun()
+        # Live Pipeline Status
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            if st.button("🔄 **Refresh Pipeline Status**", key="refresh_status"):
+                toolbox.get_live_pipeline_status()
+                st.rerun()
+        
+        with col2:
+            if st.button("🚀 **Trigger Pipeline**", type="primary", key="trigger"):
+                toolbox.trigger_pipeline()
+                st.rerun()
+        
+        # Display Live Pipeline Status
+        st.markdown("### 📊 Live Pipeline Status")
+        
+        # Auto-refresh status every 30 seconds
+        if 'last_status_check' not in st.session_state:
+            st.session_state.last_status_check = 0
+        
+        current_time = time.time()
+        if current_time - st.session_state.last_status_check > 30:
+            toolbox.get_live_pipeline_status()
+            st.session_state.last_status_check = current_time
+        
+        # Status Dashboard
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            status_color = {
+                "completed": "🟢",
+                "in_progress": "🟡", 
+                "failed": "🔴",
+                "queued": "🟠",
+                "idle": "⚪",
+                "no_runs": "🔵"
+            }.get(toolbox.pipeline_details["status"], "⚪")
+            
+            status_display = toolbox.pipeline_details["status"].replace("_", " ").title()
+            if toolbox.pipeline_details["status"] == "no_runs":
+                status_display = "No Runs Yet"
+            
+            st.metric("Status", f"{status_color} {status_display}")
+        
+        with col2:
+            if toolbox.pipeline_details["last_run"]:
+                last_run = datetime.fromisoformat(toolbox.pipeline_details["last_run"].replace('Z', '+00:00'))
+                st.metric("Last Run", last_run.strftime("%H:%M:%S"))
+            else:
+                st.metric("Last Run", "Never")
+        
+        with col3:
+            if toolbox.pipeline_details["commit_sha"]:
+                st.metric("Commit", toolbox.pipeline_details["commit_sha"])
+            else:
+                st.metric("Commit", "N/A")
+        
+        with col4:
+            if toolbox.pipeline_details["duration"]:
+                st.metric("Duration", toolbox.pipeline_details["duration"])
+            else:
+                st.metric("Duration", "N/A")
+        
+        # Pipeline Logs
+        st.markdown("### 📝 Pipeline Activity Log")
+        if toolbox.pipeline_details["logs"]:
+            for log in toolbox.pipeline_details["logs"][-10:]:  # Show last 10 logs
+                st.text(log)
+        else:
+            st.info("No pipeline activity yet")
+        
+        # Helpful message for new repositories
+        if toolbox.pipeline_details["status"] == "no_runs":
+            st.info("💡 **New Repository Detected!** To start seeing pipeline activity, you need to:")
+            st.markdown("""
+            1. **Create a GitHub Actions workflow** (`.github/workflows/deploy.yml`)
+            2. **Push some code** to trigger the workflow
+            3. **Or use the 'Trigger Pipeline' button** above to create your first run
+            """)
+        
+        # Detailed Logs Button
+        if st.button("📋 **View Detailed Workflow Logs**", key="view_logs"):
+            logs = toolbox.get_workflow_logs()
+            st.text_area("Workflow Logs", logs, height=300)
     
     # Success
     if all([auth_status["gcp"], auth_status["github"], toolbox.gcp_setup_done, toolbox.secrets_configured]):
