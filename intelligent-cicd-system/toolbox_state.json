@@ -1,0 +1,14 @@
+{
+  "github_authenticated": true,
+  "workload_identity_pool": "neurogent-wif-pool",
+  "phase": "deploy",
+  "errors": [],
+  "gcp_authenticated": true,
+  "github_user": "PramodChandrayan",
+  "gcp_project": "neurofinance-468916",
+  "workload_identity_provider": "neurogent-wif-provider",
+  "service_account_email": "cicd-service-account@neurofinance-468916.iam.gserviceaccount.com",
+  "secrets_complete": true,
+  "pipeline_complete": true,
+  "infrastructure_complete": true
+}

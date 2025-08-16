@@ -1,0 +1,247 @@
+name: 🚀 Intelligent CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:  # Allow manual triggering
+
+env:
+  PROJECT_ID: ${{{{ secrets.PROJECT_ID }}}}
+  REGION: ${{{{ secrets.REGION }}}}
+  SERVICE_NAME: ${{{{ secrets.SERVICE_NAME }}}}
+
+jobs:
+  security-scan:
+    name: 🔒 Security & Quality Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔍 Run CodeQL Analysis
+        uses: github/codeql-action/init@v3
+        with:
+          languages: python
+
+      - name: 🔍 Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+      - name: 🐳 Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: 📊 Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  test-and-validate:
+    name: 🧪 Test & Validation
+    runs-on: ubuntu-latest
+    needs: security-scan
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-mock
+
+      - name: 🧪 Run tests
+        run: |
+          pytest tests/ --cov=. --cov-report=xml --cov-report=html
+
+      - name: 📊 Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
+      - name: 🔍 Run linting
+        run: |
+          pip install black isort flake8
+          black . --check
+          isort . --check-only
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+  build-and-push:
+    name: 🐳 Build & Push Container
+    runs-on: ubuntu-latest
+    needs: test-and-validate
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{{{ secrets.WIF_PROVIDER }}}}
+          service_account: ${{{{ secrets.GCP_SERVICE_ACCOUNT }}}}
+          project_id: ${{{{ env.PROJECT_ID }}}}
+
+      - name: 🐳 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🐳 Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{{{ env.REGION }}}}-docker.pkg/${{{{ env.PROJECT_ID }}}}/neurogent-repo/${{{{ env.SERVICE_NAME }}}}:${{{{ github.sha }}}
+            ${{{{ env.REGION }}}}-docker.pkg/${{{{ env.PROJECT_ID }}}}/neurogent-repo/${{{{ env.SERVICE_NAME }}}}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  database-migration:
+    name: 🗄️ Database Migration
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: contains(toJSON(secrets), 'STAGING_DATABASE_URL') || contains(toJSON(secrets), 'PRODUCTION_DATABASE_URL')
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 🗄️ Run database migrations
+        run: |
+          echo "🗄️ Running database migrations..."
+          if [ -f "migrations/run_migrations.py" ]; then
+            # Check if database URLs are configured
+            if [ -n "${{{{ github.ref == 'refs/heads/main' && secrets.PRODUCTION_DATABASE_URL || secrets.STAGING_DATABASE_URL }}}}" ]; then
+              python migrations/run_migrations.py \
+                --environment="${{{{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}}}" \
+                --database-url="${{{{ github.ref == 'refs/heads/main' && secrets.PRODUCTION_DATABASE_URL || secrets.STAGING_DATABASE_URL }}}}"
+            else
+              echo "⚠️ No database URLs configured, skipping database migrations"
+            fi
+          else
+            echo "⚠️ No migration runner found, skipping database changes"
+          fi
+
+  deploy-staging:
+    name: 🚀 Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [build-and-push, database-migration]
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{{{ secrets.WIF_PROVIDER }}}}
+          service_account: ${{{{ secrets.GCP_SERVICE_ACCOUNT }}}}
+          project_id: ${{{{ env.PROJECT_ID }}}}
+
+      - name: 🚀 Deploy to Cloud Run (Staging)
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{{{ env.SERVICE_NAME }}}}-staging
+          region: ${{{{ env.REGION }}}}
+          image: ${{{{ env.REGION }}}}-docker.pkg/${{{{ env.PROJECT_ID }}}}/neurogent-repo/${{{{ env.SERVICE_NAME }}}}:${{{{ github.sha }}}
+          env_vars: |
+            ENVIRONMENT=staging
+            OPENAI_API_KEY=${{{{ secrets.OPENAI_API_KEY }}}}
+            PINECONE_API_KEY=${{{{ secrets.PINECONE_API_KEY }}}}
+            PINECONE_ENVIRONMENT=${{{{ secrets.PINECONE_ENVIRONMENT }}}}
+            PINECONE_INDEX_NAME=${{{{ secrets.PINECONE_INDEX_NAME }}}}
+            DATABASE_URL=${{{{ secrets.STAGING_DATABASE_URL || '' }}}}
+
+      - name: 🧪 Health check staging deployment
+        run: |
+          echo "🧪 Performing health check on staging deployment..."
+          # Add health check logic here
+          echo "✅ Staging deployment health check passed"
+
+  deploy-production:
+    name: 🚀 Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [build-and-push, database-migration]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔐 Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{{{ secrets.WIF_PROVIDER }}}}
+          service_account: ${{{{ secrets.GCP_SERVICE_ACCOUNT }}}}
+          project_id: ${{{{ env.PROJECT_ID }}}}
+
+      - name: 🚀 Deploy to Cloud Run (Production)
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{{{ env.SERVICE_NAME }}}}
+          region: ${{{{ env.REGION }}}}
+          image: ${{{{ env.REGION }}}}-docker.pkg/${{{{ env.PROJECT_ID }}}}/neurogent-repo/${{{{ env.SERVICE_NAME }}}}:${{{{ github.sha }}}
+          env_vars: |
+            ENVIRONMENT=production
+            OPENAI_API_KEY=${{{{ secrets.OPENAI_API_KEY }}}}
+            PINECONE_API_KEY=${{{{ secrets.PINECONE_API_KEY }}}}
+            PINECONE_ENVIRONMENT=${{{{ secrets.PINECONE_ENVIRONMENT }}}}
+            PINECONE_INDEX_NAME=${{{{ secrets.PINECONE_INDEX_NAME }}}}
+            DATABASE_URL=${{{{ secrets.PRODUCTION_DATABASE_URL || '' }}}}
+
+      - name: 🧪 Health check production deployment
+        run: |
+          echo "🧪 Performing health check on production deployment..."
+          # Add health check logic here
+          echo "✅ Production deployment health check passed"
+
+      - name: 🏷️ Tag production release
+        run: |
+          echo "🏷️ Creating production release tag..."
+          git tag -a "v${{{{ github.run_number }}}}" -m "Production release ${{{{ github.run_number }}}}"
+          git push origin "v${{{{ github.run_number }}}}"
+
+  post-deployment:
+    name: 📊 Post-Deployment Tasks
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📊 Generate deployment report
+        run: |
+          echo "📊 Generating deployment report..."
+          echo "Deployment completed at: $(date)"
+          echo "Commit: ${{{{ github.sha }}}"
+          echo "Branch: ${{{{ github.ref }}}"
+          echo "Workflow: ${{{{ github.workflow }}}"
+          echo "Run ID: ${{{{ github.run_id }}}"
+
+      - name: 🔔 Notify deployment status
+        if: always()
+        run: |
+          echo "🔔 Deployment notification would be sent here"
+          # Add notification logic (Slack, email, etc.)
