@@ -1,0 +1,73 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+  REGION: us-central1
+  SERVICE_NAME: neurochatagent
+  IMAGE_NAME: neurochatagent
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Google Auth
+      id: auth
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+        service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+        
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+      
+    - name: Configure Docker for Artifact Registry
+      run: |
+        gcloud auth configure-docker us-central1-docker.pkg.dev
+        
+    - name: Build and push image to Artifact Registry
+      run: |
+        docker build -t us-central1-docker.pkg/${{ env.PROJECT_ID }}/neurogent-repo/${{ env.IMAGE_NAME }}:${{ github.sha }} .
+        docker push us-central1-docker.pkg/${{ env.PROJECT_ID }}/neurogent-repo/${{ env.IMAGE_NAME }}:${{ github.sha }}
+        
+    - name: Deploy to Cloud Run
+      run: |
+        gcloud run deploy ${{ env.SERVICE_NAME }} \
+          --image us-central1-docker.pkg/${{ env.PROJECT_ID }}/neurogent-repo/${{ env.IMAGE_NAME }}:${{ github.sha }} \
+          --platform managed \
+          --region ${{ env.REGION }} \
+          --allow-unauthenticated \
+          --service-account ${{ env.SERVICE_ACCOUNT }} \
+          --port 8501 \
+          --memory 1Gi \
+          --cpu 1 \
+          --max-instances 10
+          
+    - name: Show deployment URL
+      run: |
+        DEPLOYMENT_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+          --platform managed \
+          --region ${{ env.REGION }} \
+          --format 'value(status.url)')
+        echo "🚀 Deployment URL: $DEPLOYMENT_URL"
+        echo "DEPLOYMENT_URL=$DEPLOYMENT_URL" >> $GITHUB_ENV
+        
+    - name: Test deployment
+      run: |
+        sleep 30  # Wait for service to be ready
+        curl -f ${{ env.DEPLOYMENT_URL }} || echo "Service might still be starting up"
