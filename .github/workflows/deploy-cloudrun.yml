@@ -1,7 +1,7 @@
 # GitHub Actions Workflow for PramodChandrayan/neurochatagent
-# Deploy to Google Cloud Run using Workload Identity Federation
+# Deploy Streamlit Finance Chatbot to Google Cloud Run using Workload Identity Federation
 
-name: Deploy to Cloud Run
+name: Deploy Finance Chatbot to Cloud Run
 
 on:
   push:
@@ -12,8 +12,8 @@ on:
 
 env:
   GCP_PROJECT_ID: neurofinance-468916
-  REGION: us-central1  # Default region, can be customized
-  SERVICE_NAME: neurochatagent-service  # Auto-generated service name
+  REGION: us-central1
+  SERVICE_NAME: finance-chatbot
 
 permissions:
   id-token: write  # Required for WIF OIDC
@@ -35,8 +35,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        if [ -f pyproject.toml ]; then pip install -e .; fi
+        pip install -r requirements.txt
         
     - name: Authenticate to Google Cloud
       uses: google-github-actions/auth@v2
@@ -66,9 +65,18 @@ jobs:
           OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
           PINECONE_API_KEY=${{ secrets.PINECONE_API_KEY }}
           PINECONE_ENVIRONMENT=${{ secrets.PINECONE_ENVIRONMENT }}
-          
+          CHUNK_SIZE=${{ secrets.CHUNK_SIZE }}
+          CHUNK_OVERLAP=${{ secrets.CHUNK_OVERLAP }}
+        port: 8501
+        cpu: 1
+        memory: 2Gi
+        max_instances: 10
+        concurrency: 80
+        timeout: 300
+        
     - name: Show service URL
       run: |
-        gcloud run services describe ${{ env.SERVICE_NAME }} --region=${{ env.REGION }} --format="value(status.url)"
-        echo "Service deployed successfully!"
-        echo "Service URL: $(gcloud run services describe ${{ env.SERVICE_NAME }} --region=${{ env.REGION }} --format='value(status.url)')"
+        echo "🎉 Finance Chatbot deployed successfully!"
+        echo "🌐 Service URL: $(gcloud run services describe ${{ env.SERVICE_NAME }} --region=${{ env.REGION }} --format='value(status.url)')"
+        echo "📊 Service Info:"
+        gcloud run services describe ${{ env.SERVICE_NAME }} --region=${{ env.REGION }} --format="table(metadata.name,status.url,spec.template.spec.containers[0].image,spec.template.spec.containers[0].resources.limits.cpu,spec.template.spec.containers[0].resources.limits.memory)"
