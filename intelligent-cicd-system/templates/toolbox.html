@@ -563,6 +563,21 @@
             <div class="step" id="step6">
                 <div class="step-header">
                     <div class="step-number">6</div>
+                    <div class="step-title">🤖 Automated CI/CD Setup</div>
+                </div>
+                <div class="step-description">
+                    Fully automated setup with intelligent fallbacks
+                </div>
+                <button class="btn" onclick="startAutomatedSetup()">🚀 Start Automated Setup</button>
+                <button class="btn" onclick="intelligentAuth()">🔐 Intelligent Auth</button>
+                <button class="btn" onclick="intelligentPush()">📤 Intelligent Push</button>
+                <button class="btn" onclick="manageSecrets()">🔑 Secret Management</button>
+                <div id="automated-status"></div>
+            </div>
+
+            <div class="step" id="step7">
+                <div class="step-header">
+                    <div class="step-number">7</div>
                     <div class="step-title">🚀 Deploy to Production</div>
                 </div>
                 <div class="step-description">
@@ -1876,6 +1891,241 @@ gh run list --limit 1`;
             function testJavaScript() {
                 console.log('JavaScript is working!');
                 alert('JavaScript is working!');
+            }
+
+            // Automated CI/CD Setup Functions
+            async function startAutomatedSetup() {
+                const statusDiv = document.getElementById('automated-status');
+                statusDiv.innerHTML = '<div class="status info">🚀 Starting fully automated CI/CD setup...</div>';
+                
+                try {
+                    const response = await fetch('/api/automated-setup', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        statusDiv.innerHTML = `
+                            <div class="status success">
+                                ✅ Fully automated CI/CD setup complete!
+                                <div class="details">
+                                    <strong>Status:</strong> All steps completed automatically<br>
+                                    <strong>Files Generated:</strong> Dockerfile, GitHub Actions workflow<br>
+                                    <strong>Next:</strong> Check GitHub Actions for deployment status
+                                </div>
+                                <div class="button-group">
+                                    <button class="btn btn-success" onclick="window.open('https://github.com/PramodChandrayan/neurochatagent/actions', '_blank')">🚀 Check Workflow</button>
+                                    <button class="btn btn-info" onclick="checkDeploymentStatus()">🔍 Check Status</button>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        if (data.manual_required) {
+                            statusDiv.innerHTML = `
+                                <div class="status warning">
+                                    ⚠️ Manual intervention required
+                                    <div class="details">
+                                        <strong>Step:</strong> ${data.step}<br>
+                                        <strong>Reason:</strong> ${data.explanation || 'Authentication or permissions issue'}
+                                    </div>
+                                    <div class="button-group">
+                                        <button class="btn btn-primary" onclick="intelligentAuth()">🔐 Fix Authentication</button>
+                                        <button class="btn btn-warning" onclick="intelligentPush()">📤 Fix Push</button>
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            statusDiv.innerHTML = `<div class="status error">❌ Automated setup failed: ${data.error}</div>`;
+                        }
+                    }
+                } catch (error) {
+                    statusDiv.innerHTML = `<div class="status error">❌ Network error: ${error.message}</div>`;
+                }
+            }
+
+            async function intelligentAuth() {
+                const statusDiv = document.getElementById('automated-status');
+                statusDiv.innerHTML = '<div class="status info">🔐 Starting intelligent GitHub authentication...</div>';
+                
+                try {
+                    const response = await fetch('/api/intelligent-auth', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        statusDiv.innerHTML = `
+                            <div class="status success">
+                                ✅ Intelligent authentication successful!
+                                <div class="details">
+                                    <strong>Status:</strong> GitHub authenticated with workflow scope<br>
+                                    <strong>Next:</strong> Ready for automated push
+                                </div>
+                                <div class="button-group">
+                                    <button class="btn btn-success" onclick="intelligentPush()">📤 Try Intelligent Push</button>
+                                    <button class="btn btn-primary" onclick="startAutomatedSetup()">🚀 Retry Full Setup</button>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        statusDiv.innerHTML = `
+                            <div class="status error">
+                                ❌ Intelligent authentication failed
+                                <div class="details">
+                                    <strong>Error:</strong> ${data.error}<br>
+                                    <strong>Solution:</strong> Manual authentication required
+                                </div>
+                                <div class="button-group">
+                                    <button class="btn btn-warning" onclick="showManualAuthGuide()">📋 Show Manual Guide</button>
+                                </div>
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    statusDiv.innerHTML = `<div class="status error">❌ Network error: ${error.message}</div>`;
+                }
+            }
+
+            async function intelligentPush() {
+                const statusDiv = document.getElementById('automated-status');
+                statusDiv.innerHTML = '<div class="status info">📤 Starting intelligent workflow push...</div>';
+                
+                try {
+                    const response = await fetch('/api/intelligent-push', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        statusDiv.innerHTML = `
+                            <div class="status success">
+                                ✅ Intelligent push successful!
+                                <div class="details">
+                                    <strong>Status:</strong> Workflow files pushed to GitHub<br>
+                                    <strong>Next:</strong> CI/CD pipeline triggered
+                                </div>
+                                <div class="button-group">
+                                    <button class="btn btn-success" onclick="window.open('https://github.com/PramodChandrayan/neurochatagent/actions', '_blank')">🚀 Check Workflow</button>
+                                    <button class="btn btn-info" onclick="checkDeploymentStatus()">🔍 Check Status</button>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        statusDiv.innerHTML = `
+                            <div class="status error">
+                                ❌ Intelligent push failed
+                                <div class="details">
+                                    <strong>Error:</strong> ${data.error}<br>
+                                    <strong>Solution:</strong> Manual push required
+                                </div>
+                                <div class="button-group">
+                                    <button class="btn btn-warning" onclick="copyDeploymentCommands()">📋 Copy Manual Commands</button>
+                                </div>
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    statusDiv.innerHTML = `<div class="status error">❌ Network error: ${error.message}</div>`;
+                }
+            }
+
+            async function manageSecrets() {
+                const statusDiv = document.getElementById('automated-status');
+                statusDiv.innerHTML = '<div class="status info">🔑 Analyzing secret requirements...</div>';
+                
+                try {
+                    const response = await fetch('/api/secret-management', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        const guidance = data.guidance;
+                        let secretsHtml = `
+                            <div class="status success">
+                                🔑 Secret Management Analysis Complete
+                                <div class="details">
+                                    <strong>Required Secrets:</strong> ${guidance.required_secrets.join(', ')}<br>
+                                    <strong>Detection:</strong> ${guidance.automated_detection ? 'Automated' : 'Manual'}
+                                </div>
+                                <div class="secret-commands">
+                                    <strong>Setup Commands:</strong><br>
+                                    <div class="terminal-simulation">
+                        `;
+                        
+                        guidance.setup_commands.forEach(cmd => {
+                            secretsHtml += `<div class="terminal-line">${cmd}</div>`;
+                        });
+                        
+                        secretsHtml += `
+                                    </div>
+                                </div>
+                                <div class="button-group">
+                                    <button class="btn btn-success" onclick="copySecretCommands()">📋 Copy Commands</button>
+                                    <button class="btn btn-info" onclick="window.open('https://github.com/PramodChandrayan/neurochatagent/settings/secrets/actions', '_blank')">🔑 Manage Secrets</button>
+                                </div>
+                            </div>
+                        `;
+                        
+                        statusDiv.innerHTML = secretsHtml;
+                    } else {
+                        statusDiv.innerHTML = `<div class="status error">❌ Secret analysis failed: ${data.error}</div>`;
+                    }
+                } catch (error) {
+                    statusDiv.innerHTML = `<div class="status error">❌ Network error: ${error.message}</div>`;
+                }
+            }
+
+            function showManualAuthGuide() {
+                const statusDiv = document.getElementById('automated-status');
+                const guide = `
+                    <div class="status warning">
+                        📋 Manual Authentication Guide
+                        <div class="details">
+                            <strong>Steps:</strong><br>
+                            1. Open terminal and run: <code>gh auth logout</code><br>
+                            2. Run: <code>gh auth login --web --scope workflow</code><br>
+                            3. Follow the browser authentication flow<br>
+                            4. Grant workflow permissions when prompted<br>
+                            5. Return here and click "Intelligent Auth" again
+                        </div>
+                        <div class="button-group">
+                            <button class="btn btn-primary" onclick="intelligentAuth()">🔐 Retry Authentication</button>
+                        </div>
+                    </div>
+                `;
+                statusDiv.innerHTML = guide;
+            }
+
+            function copySecretCommands() {
+                const commands = `gh secret set OPENAI_API_KEY --body "your-openai-api-key"
+gh secret set PINECONE_API_KEY --body "your-pinecone-api-key"
+gh secret set PINECONE_ENVIRONMENT --body "your-pinecone-environment"`;
+                
+                navigator.clipboard.writeText(commands).then(function() {
+                    const statusDiv = document.getElementById('automated-status');
+                    statusDiv.innerHTML = `
+                        <div class="status success">
+                            ✅ Secret commands copied to clipboard!
+                            <div class="details">Paste them in your terminal to set up secrets</div>
+                        </div>
+                    `;
+                }).catch(function(err) {
+                    console.error('Failed to copy: ', err);
+                    alert('Failed to copy commands. Please copy them manually.');
+                });
             }
         </script>
     </body>

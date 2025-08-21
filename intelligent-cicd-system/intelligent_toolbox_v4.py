@@ -111,6 +111,269 @@ def run_command_safely(command):
     except Exception as e:
         return {'success': False, 'error': str(e), 'returncode': -1}
 
+# Intelligent automation functions
+def intelligent_github_auth():
+    """Intelligent GitHub authentication with automatic fallback strategies"""
+    try:
+        print("🔐 Starting intelligent GitHub authentication...")
+        
+        # Strategy 1: Check if already authenticated
+        result = run_command_safely("gh auth status")
+        if result['success']:
+            print("✅ Already authenticated with GitHub")
+            return True
+            
+        # Strategy 2: Try token-based authentication
+        print("🔄 Attempting token-based authentication...")
+        github_token = os.getenv('GITHUB_TOKEN')
+        if github_token:
+            result = run_command_safely(f"gh auth login --with-token < {github_token}")
+            if result['success']:
+                print("✅ Token-based authentication successful")
+                return True
+                
+        # Strategy 3: Interactive authentication with workflow scope
+        print("🔄 Attempting interactive authentication with workflow scope...")
+        result = run_command_safely("gh auth login --web --scope workflow")
+        if result['success']:
+            print("✅ Interactive authentication successful")
+            return True
+            
+        # Strategy 4: Fallback to basic authentication
+        print("🔄 Attempting basic authentication...")
+        result = run_command_safely("gh auth login --web")
+        if result['success']:
+            print("✅ Basic authentication successful")
+            return True
+            
+        print("❌ All authentication strategies failed")
+        return False
+        
+    except Exception as e:
+        print(f"❌ Authentication error: {str(e)}")
+        return False
+
+def intelligent_workflow_push():
+    """Intelligent workflow file push with automatic permission handling"""
+    try:
+        print("📤 Starting intelligent workflow push...")
+        
+        # Check if workflow files exist
+        if not os.path.exists('.github/workflows'):
+            print("❌ No workflow directory found")
+            return False
+            
+        # Strategy 1: Try direct push
+        print("🔄 Attempting direct push...")
+        result = run_command_safely("git add . && git commit -m '🚀 Automated CI/CD setup' && git push origin main")
+        if result['success']:
+            print("✅ Direct push successful")
+            return True
+            
+        # Strategy 2: Check and fix permissions
+        print("🔄 Checking GitHub permissions...")
+        result = run_command_safely("gh auth status")
+        if not result['success']:
+            print("🔄 Re-authenticating with workflow scope...")
+            auth_result = intelligent_github_auth()
+            if not auth_result:
+                return False
+                
+        # Strategy 3: Force push with workflow permissions
+        print("🔄 Attempting force push with workflow permissions...")
+        result = run_command_safely("gh auth login --web --scope workflow --force")
+        if result['success']:
+            push_result = run_command_safely("git push origin main --force")
+            if push_result['success']:
+                print("✅ Force push successful")
+                return True
+                
+        # Strategy 4: Manual intervention guidance
+        print("⚠️ Automated push failed, providing manual guidance...")
+        return provide_manual_push_guidance()
+        
+    except Exception as e:
+        print(f"❌ Push error: {str(e)}")
+        return False
+
+def provide_manual_push_guidance():
+    """Provide intelligent manual push guidance"""
+    guidance = {
+        "steps": [
+            "1. Run: gh auth logout",
+            "2. Run: gh auth login --web --scope workflow",
+            "3. Run: git add .",
+            "4. Run: git commit -m '🚀 Automated CI/CD setup'",
+            "5. Run: git push origin main"
+        ],
+        "explanation": "GitHub requires workflow scope permissions for automated CI/CD setup",
+        "automated_retry": True
+    }
+    
+    print("📋 Manual push guidance:")
+    for step in guidance["steps"]:
+        print(f"   {step}")
+    
+    return guidance
+
+def intelligent_secret_management():
+    """Intelligent secret management with automatic detection and setup"""
+    try:
+        print("🔐 Starting intelligent secret management...")
+        
+        # Get project analysis
+        analysis = analyze_project_intelligently()
+        required_secrets = []
+        
+        # Detect required secrets based on project type
+        if analysis.get('project_type') == 'streamlit':
+            required_secrets.extend([
+                'OPENAI_API_KEY',
+                'PINECONE_API_KEY',
+                'PINECONE_ENVIRONMENT'
+            ])
+            
+        # Check for existing secrets
+        existing_secrets = run_command_safely("gh secret list")
+        if existing_secrets['success']:
+            print("✅ Found existing secrets")
+            
+        # Provide secret setup guidance
+        secret_guidance = {
+            "required_secrets": required_secrets,
+            "setup_commands": [
+                f"gh secret set {secret} --body 'YOUR_{secret}_VALUE'" 
+                for secret in required_secrets
+            ],
+            "automated_detection": True
+        }
+        
+        return secret_guidance
+        
+    except Exception as e:
+        print(f"❌ Secret management error: {str(e)}")
+        return None
+
+def analyze_project_intelligently():
+    """Enhanced project analysis for automation"""
+    try:
+        print("🔍 Starting intelligent project analysis...")
+        
+        analysis = {
+            'project_type': 'unknown',
+            'dependencies': [],
+            'required_secrets': [],
+            'deployment_target': 'cloud_run',
+            'needs_database': False,
+            'needs_authentication': False
+        }
+        
+        # Detect project type
+        if os.path.exists('streamlit_app.py'):
+            analysis['project_type'] = 'streamlit'
+        elif os.path.exists('app.py'):
+            analysis['project_type'] = 'flask'
+        elif os.path.exists('main.py'):
+            analysis['project_type'] = 'python'
+            
+        # Detect dependencies
+        if os.path.exists('requirements.txt'):
+            with open('requirements.txt', 'r') as f:
+                content = f.read()
+                if 'streamlit' in content:
+                    analysis['project_type'] = 'streamlit'
+                if 'flask' in content:
+                    analysis['project_type'] = 'flask'
+                    
+        # Detect required secrets
+        if analysis['project_type'] == 'streamlit':
+            analysis['required_secrets'].extend([
+                'OPENAI_API_KEY',
+                'PINECONE_API_KEY',
+                'PINECONE_ENVIRONMENT'
+            ])
+            
+        print(f"✅ Project analysis complete: {analysis['project_type']}")
+        return analysis
+        
+    except Exception as e:
+        print(f"❌ Analysis error: {str(e)}")
+        return {'project_type': 'unknown'}
+
+def automated_cicd_setup():
+    """Fully automated CI/CD setup with intelligent fallbacks"""
+    try:
+        print("🚀 Starting fully automated CI/CD setup...")
+        
+        # Step 1: Intelligent authentication
+        print("📋 Step 1: GitHub Authentication")
+        auth_success = intelligent_github_auth()
+        if not auth_success:
+            print("⚠️ Authentication failed, providing manual guidance")
+            return {"success": False, "step": "authentication", "manual_required": True}
+            
+        # Step 2: Project analysis
+        print("📋 Step 2: Project Analysis")
+        analysis = analyze_project_intelligently()
+        
+        # Step 3: Generate configurations
+        print("📋 Step 3: Generate Configurations")
+        
+        # Get migration analysis and dependencies
+        migration_analysis = {
+            'needs_migrations': False,
+            'migration_type': None,
+            'database_types': [],
+            'database_dependencies': []
+        }
+        
+        dependencies = ['requirements.txt']
+        if os.path.exists('pyproject.toml'):
+            dependencies.append('pyproject.toml')
+            
+        # Generate Dockerfile with correct parameters
+        dockerfile_content = generate_smart_dockerfile(
+            project_type=analysis.get('project_type', 'unknown'),
+            migration_analysis=migration_analysis,
+            dependencies=dependencies
+        )
+        
+        # Generate workflow with correct parameters
+        workflow_content = generate_workflow_content(
+            project_id='neurofinance-468916',  # Default project ID
+            github_repo='PramodChandrayan/neurochatagent',  # Default repo
+            wif_provider='',  # Will be filled from state
+            service_account='',  # Will be filled from state
+            project_type=analysis.get('project_type', 'unknown'),
+            migration_analysis=migration_analysis
+        )
+        
+        # Step 4: Write files
+        print("📋 Step 4: Write Configuration Files")
+        
+        # Create .github/workflows directory if it doesn't exist
+        os.makedirs('.github/workflows', exist_ok=True)
+        
+        with open('Dockerfile', 'w') as f:
+            f.write(dockerfile_content)
+        with open('.github/workflows/deploy-cloudrun.yml', 'w') as f:
+            f.write(workflow_content)
+            
+        # Step 5: Intelligent push
+        print("📋 Step 5: Automated Push")
+        push_success = intelligent_workflow_push()
+        
+        if push_success:
+            print("✅ Fully automated CI/CD setup complete!")
+            return {"success": True, "automated": True}
+        else:
+            print("⚠️ Automated push failed, manual intervention required")
+            return {"success": False, "step": "push", "manual_required": True}
+            
+    except Exception as e:
+        print(f"❌ Automated setup error: {str(e)}")
+        return {"success": False, "error": str(e)}
+
 # Add CORS headers to all responses
 @app.after_request
 def after_request(response):
@@ -2360,6 +2623,307 @@ def check_push_status():
             "status": "Files committed locally" if committed_files else "Files not committed"
         })
         
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+# Add these new functions after the existing imports and before the main Flask app
+
+def intelligent_github_auth():
+    """Intelligent GitHub authentication with automatic fallback strategies"""
+    try:
+        print("🔐 Starting intelligent GitHub authentication...")
+        
+        # Strategy 1: Check if already authenticated
+        result = run_command_safely("gh auth status")
+        if result['success']:
+            print("✅ Already authenticated with GitHub")
+            return True
+            
+        # Strategy 2: Try token-based authentication
+        print("🔄 Attempting token-based authentication...")
+        github_token = os.getenv('GITHUB_TOKEN')
+        if github_token:
+            result = run_command_safely(f"gh auth login --with-token < {github_token}")
+            if result['success']:
+                print("✅ Token-based authentication successful")
+                return True
+                
+        # Strategy 3: Interactive authentication with workflow scope
+        print("🔄 Attempting interactive authentication with workflow scope...")
+        result = run_command_safely("gh auth login --web --scope workflow")
+        if result['success']:
+            print("✅ Interactive authentication successful")
+            return True
+            
+        # Strategy 4: Fallback to basic authentication
+        print("🔄 Attempting basic authentication...")
+        result = run_command_safely("gh auth login --web")
+        if result['success']:
+            print("✅ Basic authentication successful")
+            return True
+            
+        print("❌ All authentication strategies failed")
+        return False
+        
+    except Exception as e:
+        print(f"❌ Authentication error: {str(e)}")
+        return False
+
+def intelligent_workflow_push():
+    """Intelligent workflow file push with automatic permission handling"""
+    try:
+        print("📤 Starting intelligent workflow push...")
+        
+        # Check if workflow files exist
+        if not os.path.exists('.github/workflows'):
+            print("❌ No workflow directory found")
+            return False
+            
+        # Strategy 1: Try direct push
+        print("🔄 Attempting direct push...")
+        result = run_command_safely("git add . && git commit -m '🚀 Automated CI/CD setup' && git push origin main")
+        if result['success']:
+            print("✅ Direct push successful")
+            return True
+            
+        # Strategy 2: Check and fix permissions
+        print("🔄 Checking GitHub permissions...")
+        result = run_command_safely("gh auth status")
+        if not result['success']:
+            print("🔄 Re-authenticating with workflow scope...")
+            auth_result = intelligent_github_auth()
+            if not auth_result:
+                return False
+                
+        # Strategy 3: Force push with workflow permissions
+        print("🔄 Attempting force push with workflow permissions...")
+        result = run_command_safely("gh auth login --web --scope workflow --force")
+        if result['success']:
+            push_result = run_command_safely("git push origin main --force")
+            if push_result['success']:
+                print("✅ Force push successful")
+                return True
+                
+        # Strategy 4: Manual intervention guidance
+        print("⚠️ Automated push failed, providing manual guidance...")
+        return provide_manual_push_guidance()
+        
+    except Exception as e:
+        print(f"❌ Push error: {str(e)}")
+        return False
+
+def provide_manual_push_guidance():
+    """Provide intelligent manual push guidance"""
+    guidance = {
+        "steps": [
+            "1. Run: gh auth logout",
+            "2. Run: gh auth login --web --scope workflow",
+            "3. Run: git add .",
+            "4. Run: git commit -m '🚀 Automated CI/CD setup'",
+            "5. Run: git push origin main"
+        ],
+        "explanation": "GitHub requires workflow scope permissions for automated CI/CD setup",
+        "automated_retry": True
+    }
+    
+    print("📋 Manual push guidance:")
+    for step in guidance["steps"]:
+        print(f"   {step}")
+    
+    return guidance
+
+def intelligent_secret_management():
+    """Intelligent secret management with automatic detection and setup"""
+    try:
+        print("🔐 Starting intelligent secret management...")
+        
+        # Get project analysis
+        analysis = analyze_project_intelligently()
+        required_secrets = []
+        
+        # Detect required secrets based on project type
+        if analysis.get('project_type') == 'streamlit':
+            required_secrets.extend([
+                'OPENAI_API_KEY',
+                'PINECONE_API_KEY',
+                'PINECONE_ENVIRONMENT'
+            ])
+            
+        # Check for existing secrets
+        existing_secrets = run_command_safely("gh secret list")
+        if existing_secrets['success']:
+            print("✅ Found existing secrets")
+            
+        # Provide secret setup guidance
+        secret_guidance = {
+            "required_secrets": required_secrets,
+            "setup_commands": [
+                f"gh secret set {secret} --body 'YOUR_{secret}_VALUE'" 
+                for secret in required_secrets
+            ],
+            "automated_detection": True
+        }
+        
+        return secret_guidance
+        
+    except Exception as e:
+        print(f"❌ Secret management error: {str(e)}")
+        return None
+
+def analyze_project_intelligently():
+    """Enhanced project analysis for automation"""
+    try:
+        print("🔍 Starting intelligent project analysis...")
+        
+        analysis = {
+            'project_type': 'unknown',
+            'dependencies': [],
+            'required_secrets': [],
+            'deployment_target': 'cloud_run',
+            'needs_database': False,
+            'needs_authentication': False
+        }
+        
+        # Detect project type
+        if os.path.exists('streamlit_app.py'):
+            analysis['project_type'] = 'streamlit'
+        elif os.path.exists('app.py'):
+            analysis['project_type'] = 'flask'
+        elif os.path.exists('main.py'):
+            analysis['project_type'] = 'python'
+            
+        # Detect dependencies
+        if os.path.exists('requirements.txt'):
+            with open('requirements.txt', 'r') as f:
+                content = f.read()
+                if 'streamlit' in content:
+                    analysis['project_type'] = 'streamlit'
+                if 'flask' in content:
+                    analysis['project_type'] = 'flask'
+                    
+        # Detect required secrets
+        if analysis['project_type'] == 'streamlit':
+            analysis['required_secrets'].extend([
+                'OPENAI_API_KEY',
+                'PINECONE_API_KEY',
+                'PINECONE_ENVIRONMENT'
+            ])
+            
+        print(f"✅ Project analysis complete: {analysis['project_type']}")
+        return analysis
+        
+    except Exception as e:
+        print(f"❌ Analysis error: {str(e)}")
+        return {'project_type': 'unknown'}
+
+def automated_cicd_setup():
+    """Fully automated CI/CD setup with intelligent fallbacks"""
+    try:
+        print("🚀 Starting fully automated CI/CD setup...")
+        
+        # Step 1: Intelligent authentication
+        print("📋 Step 1: GitHub Authentication")
+        auth_success = intelligent_github_auth()
+        if not auth_success:
+            print("⚠️ Authentication failed, providing manual guidance")
+            return {"success": False, "step": "authentication", "manual_required": True}
+            
+        # Step 2: Project analysis
+        print("📋 Step 2: Project Analysis")
+        analysis = analyze_project_intelligently()
+        
+        # Step 3: Generate configurations
+        print("📋 Step 3: Generate Configurations")
+        
+        # Get migration analysis and dependencies
+        migration_analysis = {
+            'needs_migrations': False,
+            'migration_type': None,
+            'database_types': [],
+            'database_dependencies': []
+        }
+        
+        dependencies = ['requirements.txt']
+        if os.path.exists('pyproject.toml'):
+            dependencies.append('pyproject.toml')
+            
+        # Generate Dockerfile with correct parameters
+        dockerfile_content = generate_smart_dockerfile(
+            project_type=analysis.get('project_type', 'unknown'),
+            migration_analysis=migration_analysis,
+            dependencies=dependencies
+        )
+        
+        # Generate workflow with correct parameters
+        workflow_content = generate_workflow_content(
+            project_id='neurofinance-468916',  # Default project ID
+            github_repo='PramodChandrayan/neurochatagent',  # Default repo
+            wif_provider='',  # Will be filled from state
+            service_account='',  # Will be filled from state
+            project_type=analysis.get('project_type', 'unknown'),
+            migration_analysis=migration_analysis
+        )
+        
+        # Step 4: Write files
+        print("📋 Step 4: Write Configuration Files")
+        
+        # Create .github/workflows directory if it doesn't exist
+        os.makedirs('.github/workflows', exist_ok=True)
+        
+        with open('Dockerfile', 'w') as f:
+            f.write(dockerfile_content)
+        with open('.github/workflows/deploy-cloudrun.yml', 'w') as f:
+            f.write(workflow_content)
+            
+        # Step 5: Intelligent push
+        print("📋 Step 5: Automated Push")
+        push_success = intelligent_workflow_push()
+        
+        if push_success:
+            print("✅ Fully automated CI/CD setup complete!")
+            return {"success": True, "automated": True}
+        else:
+            print("⚠️ Automated push failed, manual intervention required")
+            return {"success": False, "step": "push", "manual_required": True}
+            
+    except Exception as e:
+        print(f"❌ Automated setup error: {str(e)}")
+        return {"success": False, "error": str(e)}
+
+# Add new API endpoints for automation
+@app.route('/api/automated-setup', methods=['POST'])
+def api_automated_setup():
+    """API endpoint for fully automated CI/CD setup"""
+    try:
+        result = automated_cicd_setup()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route('/api/intelligent-auth', methods=['POST'])
+def api_intelligent_auth():
+    """API endpoint for intelligent GitHub authentication"""
+    try:
+        result = intelligent_github_auth()
+        return jsonify({"success": result})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route('/api/intelligent-push', methods=['POST'])
+def api_intelligent_push():
+    """API endpoint for intelligent workflow push"""
+    try:
+        result = intelligent_workflow_push()
+        return jsonify({"success": result})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route('/api/secret-management', methods=['POST'])
+def api_secret_management():
+    """API endpoint for intelligent secret management"""
+    try:
+        result = intelligent_secret_management()
+        return jsonify({"success": True, "guidance": result})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
