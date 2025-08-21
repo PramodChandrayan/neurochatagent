@@ -1654,7 +1654,9 @@ ENV DEBIAN_FRONTEND=noninteractive
     
     # Add project-specific environment variables
     if project_type == 'streamlit':
-        dockerfile_content += """ENV STREAMLIT_SERVER_PORT=8501
+        dockerfile_content += """# Cloud Run expects PORT environment variable
+ENV PORT=8080
+ENV STREAMLIT_SERVER_PORT=8080
 ENV STREAMLIT_SERVER_ADDRESS=0.0.0.0
 ENV STREAMLIT_SERVER_HEADLESS=true
 ENV STREAMLIT_SERVER_ENABLE_CORS=false
@@ -1671,14 +1673,14 @@ ENV FLASK_DEBUG=0
     # Add health check
     dockerfile_content += """# Health check
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \\
-    CMD curl -f http://localhost:8501/ || exit 1
+    CMD curl -f http://localhost:8080/ || exit 1
 
 """
     
     # Add the appropriate command based on project type
     if project_type == 'streamlit':
         dockerfile_content += """# Run the Streamlit application
-CMD ["streamlit", "run", "streamlit_app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+CMD ["streamlit", "run", "streamlit_app.py", "--server.port=8080", "--server.address=0.0.0.0"]
 """
     elif project_type == 'flask':
         dockerfile_content += """# Expose port
