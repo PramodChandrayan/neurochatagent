@@ -24,6 +24,18 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        echo "📦 Installing Python dependencies..."
+        pip install --upgrade pip
+        pip install -r requirements.txt
+        echo "✅ Dependencies installed"
+      
     - name: Google Cloud Auth
       uses: google-github-actions/auth@v2
       with:
