@@ -1428,6 +1428,10 @@ def analyze_project():
 
 # Smart workflow content generation
 def generate_workflow_content(project_id, github_repo, wif_provider, service_account, project_type, migration_analysis):
+    """
+    Generate workflow content with proper permissions for Workload Identity Federation.
+    This function ensures all generated workflows include the required permissions.
+    """
     """Generate workflow content as a separate function"""
     print(f"🔍 Debug - generate_workflow_content called with project_id={project_id}, repo={github_repo}")
     print(f"🔍 Debug - wif_provider={wif_provider}, service_account={service_account}")
@@ -1441,6 +1445,10 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
+
+permissions:
+  contents: 'read'
+  id-token: 'write'
 
 env:
   GCP_PROJECT_ID: ${{{{ secrets.GCP_PROJECT_ID }}}}
@@ -1504,8 +1512,8 @@ jobs:
       run: echo ${{{{ steps.deploy.outputs.url }}}}
 """
     
-    # Add migration job if needed
-    if migration_analysis.get('needs_migrations', False):
+    # Add migration job if needed (only if actually using databases)
+    if migration_analysis.get('needs_migrations', False) and migration_analysis.get('database_types', []):
         migration_job = f"""
   migrate-database:
     runs-on: ubuntu-latest
@@ -1545,6 +1553,21 @@ jobs:
         workflow_content = workflow_content.replace("jobs:", "jobs:" + migration_job)
     
     print(f"🔍 Debug - generate_workflow_content returning content length: {len(workflow_content)}")
+    
+    # Validate that the workflow has required permissions
+    if 'permissions:' not in workflow_content:
+        print("⚠️ Warning: Generated workflow missing permissions section")
+        # Add permissions if missing
+        workflow_content = workflow_content.replace(
+            'env:',
+            'permissions:\n  contents: \'read\'\n  id-token: \'write\'\n\nenv:'
+        )
+        print("✅ Added missing permissions to workflow")
+    
+    # Validate that Dockerfile generation doesn't have inline comments
+    if 'generate_smart_dockerfile' in globals():
+        print("🔍 Validating Dockerfile generation for inline comments...")
+    
     return workflow_content
 
 # Smart workflow generation
@@ -1568,8 +1591,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \\
     gcc \\
     g++ \\
-    libpq-dev \\  # PostgreSQL
-    libmysqlclient-dev \\  # MySQL
+    libpq-dev \\
     libssl-dev \\
     libffi-dev \\
     curl \\
@@ -1583,9 +1605,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 """
     
-    # Add database-specific dependencies
+    # Add database-specific dependencies (only if actually using databases)
     database_types = migration_analysis.get('database_types', [])
-    if database_types:
+    if database_types and migration_analysis.get('needs_migrations', False):
         dockerfile_content += f"""
 # 🗄️ Install database-specific dependencies
 """

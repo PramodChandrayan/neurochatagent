@@ -12,7 +12,6 @@ RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     libpq-dev \
-    libmysqlclient-dev \
     libssl-dev \
     libffi-dev \
     curl \
@@ -25,11 +24,11 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 
-# 🗄️ Install database-specific dependencies
-RUN pip install --no-cache-dir psycopg2-binary
+# 🗄️ Install database-specific dependencies (only if needed)
+# RUN pip install --no-cache-dir psycopg2-binary
 
-# 🔄 Install migration tools
-RUN pip install --no-cache-dir alembic
+# 🔄 Install migration tools (only if needed)
+# RUN pip install --no-cache-dir alembic
 
 # Copy application code
 COPY . .
