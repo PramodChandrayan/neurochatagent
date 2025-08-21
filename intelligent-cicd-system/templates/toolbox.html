@@ -1,0 +1,1881 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>🧠 Intelligent CI/CD Toolbox v4</title>
+        <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+        <meta http-equiv="Pragma" content="no-cache">
+        <meta http-equiv="Expires" content="0">
+        <style>
+            body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+            .container { max-width: 1200px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+            h1 { color: #2c3e50; text-align: center; }
+            .step { margin: 20px 0; padding: 20px; border: 2px solid #ecf0f1; border-radius: 8px; }
+            .step-header { display: flex; align-items: center; margin-bottom: 15px; }
+            .step-number { background: #3498db; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-weight: bold; }
+            .step-title { font-size: 18px; font-weight: bold; color: #2c3e50; }
+            .step-description { color: #7f8c8d; margin-bottom: 15px; }
+            .btn { background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 5px; }
+            .btn:hover { background: #2980b9; }
+            .btn:disabled { background: #bdc3c7; cursor: not-allowed; }
+            .btn-success { background: #27ae60; }
+            .btn-warning { background: #f39c12; }
+            .status { padding: 10px; border-radius: 5px; margin: 10px 0; }
+            .status.success { background: #d5f4e6; border: 1px solid #27ae60; color: #27ae60; }
+            .status.error { background: #fadbd8; border: 1px solid #e74c3c; color: #e74c3c; }
+            .status.info { background: #d6eaf8; border: 1px solid #3498db; color: #3498db; }
+            
+            /* Modal Styles */
+            .modal-overlay {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
+            }
+            
+            .modal-content {
+                background: white;
+                padding: 30px;
+                border-radius: 10px;
+                max-width: 500px;
+                width: 90%;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            }
+            
+            .modal-content h3 {
+                margin-top: 0;
+                color: #2c3e50;
+            }
+            
+            .project-list {
+                margin: 20px 0;
+            }
+            
+            .project-item {
+                padding: 15px;
+                border: 2px solid #ecf0f1;
+                border-radius: 8px;
+                margin: 10px 0;
+                cursor: pointer;
+                transition: all 0.3s ease;
+            }
+            
+            .project-item:hover {
+                border-color: #3498db;
+                background: #f8f9fa;
+            }
+            
+            /* Repository Modal Styles */
+            .repo-list {
+                margin: 20px 0;
+                max-height: 400px;
+                overflow-y: auto;
+            }
+            
+            .repo-item {
+                padding: 15px;
+                border: 2px solid #ecf0f1;
+                border-radius: 8px;
+                margin: 10px 0;
+                cursor: pointer;
+                transition: all 0.3s ease;
+            }
+            
+            .repo-item:hover {
+                border-color: #3498db;
+                background: #f8f9fa;
+            }
+            
+            .repo-name {
+                font-size: 16px;
+                margin-bottom: 5px;
+                color: #2c3e50;
+            }
+            
+            .repo-description {
+                font-size: 14px;
+                color: #7f8c8d;
+                margin-bottom: 5px;
+            }
+            
+            .repo-url {
+                font-size: 12px;
+                color: #95a5a6;
+                font-family: monospace;
+            }
+            
+            /* Authentication Styles */
+            .auth-details {
+                margin: 15px 0;
+                padding: 10px;
+                background: #f8f9fa;
+                border-radius: 5px;
+            }
+            
+            .auth-item {
+                padding: 8px 12px;
+                margin: 5px 0;
+                border-radius: 4px;
+                font-size: 14px;
+                font-weight: 500;
+            }
+            
+            .auth-item.success {
+                background: #d4edda;
+                color: #155724;
+                border: 1px solid #c3e6cb;
+            }
+            
+            .auth-item.error {
+                background: #f8d7da;
+                color: #721c24;
+                border: 1px solid #f5c6cb;
+            }
+            
+            .progress-bar {
+                width: 100%;
+                height: 20px;
+                background-color: #f0f0f0;
+                border-radius: 10px;
+                overflow: hidden;
+                margin: 10px 0;
+            }
+            
+            .progress-fill {
+                height: 100%;
+                background-color: #3498db;
+                width: 0%;
+                transition: width 0.3s ease;
+            }
+            
+            .button-group {
+                margin-top: 10px;
+            }
+            
+            .button-group button {
+                margin-right: 10px;
+            }
+            
+            .status.warning {
+                background: #fff3cd;
+                border: 1px solid #ffeaa7;
+                color: #856404;
+            }
+            
+            /* Analysis Modal Styles */
+            .analysis-modal {
+                max-width: 800px;
+                max-height: 80vh;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+            }
+            
+            .modal-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 20px 30px 10px 30px;
+                border-bottom: 1px solid #ecf0f1;
+            }
+            
+            .modal-header h3 {
+                margin: 0;
+                color: #2c3e50;
+            }
+            
+            .close-btn {
+                background: none;
+                border: none;
+                font-size: 24px;
+                cursor: pointer;
+                color: #7f8c8d;
+                padding: 0;
+                width: 30px;
+                height: 30px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 50%;
+                transition: background-color 0.3s ease;
+            }
+            
+            .close-btn:hover {
+                background-color: #ecf0f1;
+                color: #2c3e50;
+            }
+            
+            .modal-body {
+                flex: 1;
+                overflow-y: auto;
+                padding: 20px 30px;
+            }
+            
+            .modal-footer {
+                padding: 20px 30px;
+                border-top: 1px solid #ecf0f1;
+                background: #f8f9fa;
+            }
+            
+            .analysis-section {
+                margin-bottom: 25px;
+            }
+            
+            .analysis-section h4 {
+                color: #2c3e50;
+                margin-bottom: 15px;
+                font-size: 16px;
+                border-bottom: 2px solid #3498db;
+                padding-bottom: 5px;
+            }
+            
+            .analysis-grid {
+                display: grid;
+                grid-template-columns: 1fr 2fr;
+                gap: 10px;
+            }
+            
+            .analysis-item {
+                display: flex;
+                align-items: center;
+                padding: 8px 0;
+            }
+            
+            .analysis-item .label {
+                font-weight: 600;
+                color: #2c3e50;
+                min-width: 120px;
+            }
+            
+            .analysis-item .value {
+                color: #7f8c8d;
+                font-family: monospace;
+            }
+            
+            .secrets-list {
+                max-height: 300px;
+                overflow-y: auto;
+            }
+            
+            .secret-item {
+                background: #f8f9fa;
+                border: 1px solid #e9ecef;
+                border-radius: 8px;
+                padding: 15px;
+                margin-bottom: 10px;
+            }
+            
+            .secret-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 8px;
+            }
+            
+            .secret-name {
+                font-weight: 600;
+                color: #2c3e50;
+                font-family: monospace;
+            }
+            
+            .secret-source {
+                background: #3498db;
+                color: white;
+                padding: 2px 8px;
+                border-radius: 12px;
+                font-size: 12px;
+                font-weight: 500;
+            }
+            
+            .secret-value {
+                background: #ecf0f1;
+                padding: 5px 10px;
+                border-radius: 4px;
+                font-family: monospace;
+                font-size: 14px;
+                color: #7f8c8d;
+                margin-bottom: 5px;
+            }
+            
+            .secret-description {
+                font-size: 13px;
+                color: #95a5a6;
+                font-style: italic;
+            }
+            
+            .recommendations-list {
+                list-style: none;
+                padding: 0;
+            }
+            
+            .recommendations-list li {
+                background: #e8f5e8;
+                border-left: 4px solid #27ae60;
+                padding: 10px 15px;
+                margin-bottom: 8px;
+                border-radius: 0 4px 4px 0;
+            }
+            
+            .button-group {
+                text-align: right;
+                margin-top: 20px;
+            }
+            
+            /* Loading Spinner */
+            .loading-spinner {
+                display: inline-block;
+                width: 20px;
+                height: 20px;
+                border: 3px solid #f3f3f3;
+                border-top: 3px solid #3498db;
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+                margin-right: 10px;
+            }
+            
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+            
+            /* Progress Steps */
+            .progress-steps {
+                margin-top: 15px;
+                padding-left: 20px;
+            }
+            
+            .progress-steps .step {
+                color: #7f8c8d;
+                font-size: 14px;
+                margin: 5px 0;
+                padding: 5px 0;
+            }
+            
+            /* Details */
+            .details {
+                margin-top: 10px;
+                padding: 10px;
+                background: #f8f9fa;
+                border-radius: 5px;
+                font-size: 14px;
+                line-height: 1.4;
+            }
+            
+            .error-details {
+                margin-top: 10px;
+                padding: 10px;
+                background: #fdf2f2;
+                border-radius: 5px;
+                font-size: 14px;
+                line-height: 1.4;
+                color: #e74c3c;
+            }
+            
+            /* Solution Options Styles */
+            .solution-options {
+                margin-top: 20px;
+                padding: 15px;
+                background: #f8f9fa;
+                border-radius: 8px;
+                border: 1px solid #e9ecef;
+            }
+            
+            .solution-options h4 {
+                color: #2c3e50;
+                margin-bottom: 15px;
+                font-size: 16px;
+            }
+            
+            .option-card {
+                background: white;
+                border: 1px solid #dee2e6;
+                border-radius: 8px;
+                padding: 15px;
+                margin-bottom: 15px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            
+            .option-card h5 {
+                color: #495057;
+                margin-bottom: 10px;
+                font-size: 14px;
+                font-weight: 600;
+            }
+            
+            .option-card p {
+                color: #6c757d;
+                margin-bottom: 10px;
+                font-size: 13px;
+            }
+            
+            .code-block {
+                background: #f8f9fa;
+                border: 1px solid #e9ecef;
+                border-radius: 5px;
+                padding: 12px;
+                margin: 10px 0;
+                font-family: 'Courier New', monospace;
+                font-size: 12px;
+                line-height: 1.4;
+                overflow-x: auto;
+            }
+            
+            .code-block code {
+                color: #495057;
+                background: none;
+                padding: 0;
+            }
+            
+            .option-card ol {
+                margin: 10px 0;
+                padding-left: 20px;
+            }
+            
+            .option-card li {
+                color: #6c757d;
+                font-size: 13px;
+                margin-bottom: 5px;
+            }
+            
+            .terminal-simulation {
+                background: #1e1e1e;
+                color: #ffffff;
+                border-radius: 8px;
+                padding: 15px;
+                margin: 15px 0;
+                font-family: 'Courier New', monospace;
+                border: 1px solid #333;
+            }
+            
+            .terminal-header {
+                color: #00ff00;
+                font-weight: bold;
+                margin-bottom: 10px;
+                border-bottom: 1px solid #333;
+                padding-bottom: 5px;
+            }
+            
+            .terminal-content {
+                line-height: 1.4;
+            }
+            
+            .terminal-line {
+                margin: 5px 0;
+            }
+            
+            .device-code {
+                color: #ffff00;
+                font-weight: bold;
+                background: #333;
+                padding: 2px 6px;
+                border-radius: 3px;
+            }
+            
+            .device-url {
+                color: #00ffff;
+                text-decoration: underline;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🧠 Intelligent CI/CD Toolbox v4</h1>
+            <p style="text-align: center; color: #7f8c8d; margin-bottom: 30px;">
+                Smart project analysis and automated deployment for your Streamlit Finance Chatbot
+            </p>
+            <div style="text-align: center; margin-bottom: 20px;">
+                <button class="btn" onclick="testJavaScript()">🧪 Test JavaScript</button>
+            </div>
+            
+            <div class="step" id="step1">
+                <div class="step-header">
+                    <div class="step-number">1</div>
+                    <div class="step-title">🔐 Authentication</div>
+                </div>
+                <div class="step-description">
+                    Check GCP and GitHub authentication status
+                </div>
+                <button class="btn" onclick="checkAuth()">🔍 Check Auth</button>
+                <button class="btn" onclick="authGCP()">🔐 Authenticate GCP</button>
+                <button class="btn" onclick="authGitHub()">🔐 Authenticate GitHub</button>
+                <button class="btn" onclick="authGitHubCLI()">🔧 Authenticate GitHub CLI</button>
+                <button class="btn btn-secondary" onclick="revokeGCP()">🚫 Revoke GCP</button>
+                <button class="btn btn-secondary" onclick="revokeGitHub()">🚫 Revoke GitHub</button>
+                <div id="step1Status"></div>
+            </div>
+            
+            <div class="step" id="step2">
+                <div class="step-header">
+                    <div class="step-number">2</div>
+                    <div class="step-title">🏗️ Project Setup</div>
+                </div>
+                <div class="step-description">
+                    Discover GCP projects and setup infrastructure
+                </div>
+                <button class="btn" onclick="discoverProjects()" disabled>🔍 Discover GCP Projects</button>
+                <button class="btn" onclick="discoverRepos()" disabled>🔍 Discover GitHub Repos</button>
+                <button class="btn" onclick="setupInfrastructure()" disabled>⚙️ Setup Infrastructure</button>
+                <div id="step2Status"></div>
+            </div>
+            
+            <div class="step" id="step3">
+                <div class="step-header">
+                    <div class="step-number">3</div>
+                    <div class="step-title">🔍 Smart Project Analysis</div>
+                </div>
+                <div class="step-description">
+                    Automatically analyze your project structure
+                </div>
+                <button class="btn" onclick="analyzeProject()" disabled>🔍 Analyze Project</button>
+                <div id="step3Status"></div>
+            </div>
+            
+            <div class="step" id="step4">
+                <div class="step-header">
+                    <div class="step-number">4</div>
+                    <div class="step-title">📤 Push Secrets</div>
+                </div>
+                <div class="step-description">
+                    Push secrets to GitHub repository
+                </div>
+                <button class="btn" onclick="pushSecrets()" disabled>📤 Push Secrets</button>
+                <div id="step4Status"></div>
+            </div>
+            
+            <div class="step" id="step5">
+                <div class="step-header">
+                    <div class="step-number">5</div>
+                    <div class="step-title">🧠 Smart Workflow Generation</div>
+                </div>
+                <div class="step-description">
+                    Generate perfect deployment workflow for your project
+                </div>
+                <button class="btn" onclick="generateWorkflowOnly()" disabled>📝 Generate Workflow YAML</button>
+                <button class="btn" onclick="generateDockerfileOnly()" disabled>🐳 Generate Dockerfile</button>
+                <div id="step5Status"></div>
+            </div>
+            
+            <div class="step" id="step6">
+                <div class="step-header">
+                    <div class="step-number">6</div>
+                    <div class="step-title">🚀 Deploy to Production</div>
+                </div>
+                <div class="step-description">
+                    Push your code to GitHub and trigger the CI/CD pipeline
+                </div>
+                <button class="btn" onclick="showDeploymentGuide()">📋 Show Deployment Guide</button>
+                <button class="btn" onclick="copyDeploymentCommands()">📋 Copy Commands</button>
+                <button class="btn" onclick="checkDeploymentStatus()">🔍 Check Status</button>
+                <div id="step6Status"></div>
+            </div>
+        </div>
+        
+        <script>
+            // Debug: Check if functions are loaded
+            console.log('Toolbox JavaScript loaded');
+            
+            async function checkAuth() {
+                const statusDiv = document.getElementById('step1Status');
+                statusDiv.innerHTML = '<div class="status info">🔍 Checking authentication...</div>';
+                
+                try {
+                    const response = await fetch('/api/step1/check_auth');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        let statusHtml = '<div class="status info">🔍 Authentication Status:</div>';
+                        statusHtml += '<div class="auth-details">';
+                        
+                        if (data.gcp_authenticated) {
+                            statusHtml += `<div class="auth-item success">✅ GCP: ${data.gcp_account}</div>`;
+                        } else {
+                            statusHtml += '<div class="auth-item error">❌ GCP: Not authenticated</div>';
+                        }
+                        
+                        if (data.gh_authenticated) {
+                            statusHtml += '<div class="auth-item success">✅ GitHub: Authenticated</div>';
+                        } else {
+                            statusHtml += '<div class="auth-item error">❌ GitHub: Not authenticated</div>';
+                        }
+                        
+                        statusHtml += '</div>';
+                        
+                        if (data.gcp_authenticated && data.gh_authenticated) {
+                            statusHtml += '<div class="status success">✅ All authentication complete!</div>';
+                            // Enable the Discover Projects and Repos buttons
+                            const discoverProjectsButton = document.querySelector('#step2 button[onclick="discoverProjects()"]');
+                            const discoverReposButton = document.querySelector('#step2 button[onclick="discoverRepos()"]');
+                            if (discoverProjectsButton) {
+                                discoverProjectsButton.disabled = false;
+                            }
+                            if (discoverReposButton) {
+                                discoverReposButton.disabled = false;
+                            }
+                        } else {
+                            statusHtml += '<div class="status warning">⚠️ Please authenticate missing services above</div>';
+                        }
+                        
+                        statusDiv.innerHTML = statusHtml;
+                    } else {
+                        statusDiv.innerHTML = `
+                            <div class="status error">
+                                ❌ Authentication check failed
+                                <div class="error-details">${data.error}</div>
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    statusDiv.innerHTML = `
+                        <div class="status error">
+                            ❌ Network error: ${error.message}
+                        </div>
+                    `;
+                }
+            }
+            
+            async function authGCP() {
+                const statusDiv = document.getElementById('step1Status');
+                statusDiv.innerHTML = '<div class="status info">🔐 Starting GCP authentication...</div>';
+                
+                try {
+                    const response = await fetch('/api/step1/auth_gcp');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        statusDiv.innerHTML = `
+                            <div class="status success">
+                                ✅ GCP authentication successful!
+                                <div class="details">Account: ${data.account}</div>
+                            </div>
+                        `;
+                        // Re-check auth status
+                        setTimeout(checkAuth, 1000);
+                    } else {
+                        statusDiv.innerHTML = `
+                            <div class="status error">
+                                ❌ GCP authentication failed
+                                <div class="error-details">${data.error}</div>
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    statusDiv.innerHTML = `
+                        <div class="status error">
+                            ❌ Network error: ${error.message}
+                        </div>
+                    `;
+                }
+            }
+            
+            async function authGitHub() {
+                const statusDiv = document.getElementById('step1Status');
+                statusDiv.innerHTML = '<div class="status info">🔐 Starting GitHub authentication...</div>';
+                
+                try {
+                    const response = await fetch('/api/step1/auth_github');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        if (data.auth_type === 'manual_cli') {
+                            // Show manual CLI authentication option
+                            statusDiv.innerHTML = `
+                                <div class="status info">
+                                    🔐 GitHub CLI Authentication Required
+                                    <div class="details">${data.instructions}</div>
+                                    <div class="button-group">
+                                        <button class="btn btn-primary" onclick="authGitHubCLI()">🔧 Authenticate CLI</button>
+                                        <button class="btn btn-secondary" onclick="checkAuth()">🔄 Check Status</button>
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            statusDiv.innerHTML = `
+                                <div class="status success">
+                                    ✅ GitHub authentication started!
+                                    <div class="details">${data.instructions}</div>
+                                </div>
+                            `;
+                            // Re-check auth status after a delay
+                            setTimeout(checkAuth, 3000);
+                        }
+                    } else {
+                        statusDiv.innerHTML = `
+                            <div class="status error">
+                                ❌ GitHub authentication failed
+                                <div class="error-details">${data.error}</div>
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    statusDiv.innerHTML = `
+                        <div class="status error">
+                            ❌ Network error: ${error.message}
+                        </div>
+                    `;
+                }
+            }
+            
+            async function authGitHubCLI() {
+                const statusDiv = document.getElementById('step1Status');
+                statusDiv.innerHTML = '<div class="status info">🔧 Starting interactive GitHub CLI authentication...</div>';
+                
+                try {
+                    const response = await fetch('/api/step1/auth_github_cli');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        if (data.auth_type === 'already_authenticated') {
+                            statusDiv.innerHTML = `
+                                <div class="status success">
+                                    ✅ GitHub CLI already authenticated!
+                                </div>
+                            `;
+                        } else if (data.auth_type === 'interactive_start') {
+                            showInteractivePrompt(data, statusDiv);
+                        } else {
+                            statusDiv.innerHTML = `
+                                <div class="status success">
+                                    ✅ GitHub CLI authentication started!
+                                    <div class="details">${data.instructions}</div>
+                                </div>
+                            `;
+                        }
+                    } else {
+                        statusDiv.innerHTML = `
+                            <div class="status error">
+                                ❌ GitHub CLI authentication failed
+                                <div class="error-details">${data.error}</div>
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    statusDiv.innerHTML = `
+                        <div class="status error">
+                            ❌ Network error: ${error.message}
+                        </div>
+                    `;
+                }
+            }
+            
+            function showInteractivePrompt(data, statusDiv) {
+                let optionsHtml = '';
+                data.options.forEach(option => {
+                    optionsHtml += `<button class="btn btn-secondary" onclick="handleInteractiveChoice('${data.next_endpoint}', '${option}')">${option}</button>`;
+                });
+                
+                statusDiv.innerHTML = `
+                    <div class="status info">
+                        <h4>Step ${data.step}: ${data.question}</h4>
+                        <div class="details">${data.message}</div>
+                        <div class="button-group">
+                            ${optionsHtml}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            async function handleInteractiveChoice(endpoint, choice) {
+                const statusDiv = document.getElementById('step1Status');
+                statusDiv.innerHTML = '<div class="status info">⏳ Processing your choice...</div>';
+                
+                try {
+                    // Determine the parameter name based on the endpoint
+                    let paramName = 'choice';
+                    if (endpoint.includes('step2')) paramName = 'hostname';
+                    else if (endpoint.includes('step3')) paramName = 'protocol';
+                    else if (endpoint.includes('step4')) paramName = 'auth_method';
+                    
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ [paramName]: choice })
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        if (data.auth_type === 'device_auth_started') {
+                            statusDiv.innerHTML = `
+                                <div class="status info">
+                                    🔧 Device authentication started!
+                                    <div class="details">${data.instructions}</div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill"></div>
+                                    </div>
+                                </div>
+                            `;
+                            // Start polling for device code
+                            pollDeviceCode();
+                        } else if (data.auth_type && data.auth_type.startsWith('interactive_')) {
+                            showInteractivePrompt(data, statusDiv);
+                        } else {
+                            statusDiv.innerHTML = `
+                                <div class="status success">
+                                    ✅ ${data.message}
+                                </div>
+                            `;
+                        }
+                    } else {
+                        statusDiv.innerHTML = `
+                            <div class="status error">
+                                ❌ Error: ${data.error}
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    statusDiv.innerHTML = `
+                        <div class="status error">
+                            ❌ Network error: ${error.message}
+                        </div>
+                    `;
+                }
+            }
+            
+            async function pollDeviceCode() {
+                const statusDiv = document.getElementById('step1Status');
+                let attempts = 0;
+                const maxAttempts = 60; // 60 seconds
+                
+                const poll = async () => {
+                    attempts++;
+                    try {
+                        const response = await fetch('/api/step1/auth_github_cli_status');
+                        const data = await response.json();
+                        
+                        if (data.auth_type === 'device_code_ready') {
+                            statusDiv.innerHTML = `
+                                <div class="status success">
+                                    <div class="terminal-simulation">
+                                        <div class="terminal-header">Terminal Output:</div>
+                                        <div class="terminal-content">
+                                            <div class="terminal-line">! First copy your one-time code: <span class="device-code">${data.device_code}</span></div>
+                                            <div class="terminal-line">Open this URL to continue in your web browser: <span class="device-url">${data.device_url}</span></div>
+                                        </div>
+                                    </div>
+                                    <div class="details">
+                                        <strong>Device Code: ${data.device_code}</strong><br>
+                                        ${data.instructions}
+                                    </div>
+                                    <div class="button-group">
+                                        <button class="btn btn-primary" onclick="copyDeviceCode('${data.device_code}')">📋 Copy Code</button>
+                                        <button class="btn btn-primary" onclick="window.open('${data.device_url}', '_blank')">🌐 Open Browser</button>
+                                        <button class="btn btn-secondary" onclick="pollDeviceCode()">🔄 Check Status</button>
+                                    </div>
+                                </div>
+                            `;
+                            return;
+                        } else if (data.auth_type === 'completed') {
+                            statusDiv.innerHTML = `
+                                <div class="status success">
+                                    ✅ GitHub CLI authentication successful!
+                                    <div class="details">Account: ${data.account}</div>
+                                </div>
+                            `;
+                            return;
+                        }
+                        
+                        if (attempts >= maxAttempts) {
+                            statusDiv.innerHTML = `
+                                <div class="status warning">
+                                    ⏰ Authentication timeout
+                                    <div class="details">Please try again or check the terminal output</div>
+                                    <button class="btn btn-secondary" onclick="checkAuth()">🔄 Check Status</button>
+                                </div>
+                            `;
+                            return;
+                        }
+                        
+                        // Update progress
+                        const progress = (attempts / maxAttempts) * 100;
+                        statusDiv.innerHTML = `
+                            <div class="status info">
+                                🔧 Generating device code...
+                                <div class="details">${data.instructions}</div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: ${progress}%"></div>
+                                </div>
+                            </div>
+                        `;
+                        
+                        setTimeout(poll, 1000);
+                    } catch (error) {
+                        statusDiv.innerHTML = `
+                            <div class="status error">
+                                ❌ Polling error: ${error.message}
+                            </div>
+                        `;
+                    }
+                };
+                
+                poll();
+            }
+        
+        function copyDeviceCode(code) {
+            navigator.clipboard.writeText(code).then(function() {
+                // Show a brief success message
+                const statusDiv = document.getElementById('step1Status');
+                const originalContent = statusDiv.innerHTML;
+                statusDiv.innerHTML = `
+                    <div class="status success">
+                        ✅ Device code copied to clipboard!
+                        <div class="details">Code: ${code}</div>
+                        <button class="btn btn-secondary" onclick="pollDeviceCode()">🔄 Check Status</button>
+                    </div>
+                `;
+                setTimeout(() => {
+                    statusDiv.innerHTML = originalContent;
+                }, 2000);
+            }).catch(function(err) {
+                console.error('Failed to copy: ', err);
+            });
+        }
+        
+        async function pollGitHubAuth() {
+                const statusDiv = document.getElementById('step1Status');
+                let attempts = 0;
+                const maxAttempts = 30; // 30 seconds
+                
+                const poll = async () => {
+                    attempts++;
+                    try {
+                        const response = await fetch('/api/step1/check_auth');
+                        const data = await response.json();
+                        
+                        if (data.gh_authenticated) {
+                            statusDiv.innerHTML = `
+                                <div class="status success">
+                                    ✅ GitHub CLI authentication successful!
+                                    <div class="details">Account: ${data.gh_account || 'Authenticated'}</div>
+                                </div>
+                            `;
+                            return;
+                        }
+                        
+                        if (attempts >= maxAttempts) {
+                            statusDiv.innerHTML = `
+                                <div class="status warning">
+                                    ⏰ Authentication timeout
+                                    <div class="details">Please complete the authentication in your browser and click "Check Status"</div>
+                                    <button class="btn btn-secondary" onclick="checkAuth()">🔄 Check Status</button>
+                                </div>
+                            `;
+                            return;
+                        }
+                        
+                        // Update progress
+                        const progress = (attempts / maxAttempts) * 100;
+                        statusDiv.innerHTML = `
+                            <div class="status info">
+                                🔧 GitHub CLI authentication in progress...
+                                <div class="details">Please complete the authentication in your browser</div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: ${progress}%"></div>
+                                </div>
+                            </div>
+                        `;
+                        
+                        setTimeout(poll, 1000);
+                    } catch (error) {
+                        statusDiv.innerHTML = `
+                            <div class="status error">
+                                ❌ Polling error: ${error.message}
+                            </div>
+                        `;
+                    }
+                };
+                
+                poll();
+            }
+            
+            async function revokeGCP() {
+                const statusDiv = document.getElementById('step1Status');
+                statusDiv.innerHTML = '<div class="status info">🚫 Revoking GCP authentication...</div>';
+                
+                try {
+                    const response = await fetch('/api/step1/revoke_gcp');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        statusDiv.innerHTML = `
+                            <div class="status success">
+                                ✅ GCP authentication revoked successfully!
+                                <div class="details">${data.note}</div>
+                            </div>
+                        `;
+                        // Re-check auth status
+                        setTimeout(checkAuth, 1000);
+                    } else {
+                        statusDiv.innerHTML = `
+                            <div class="status error">
+                                ❌ Failed to revoke GCP authentication
+                                <div class="error-details">${data.error}</div>
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    statusDiv.innerHTML = `
+                        <div class="status error">
+                            ❌ Network error: ${error.message}
+                        </div>
+                    `;
+                }
+            }
+            
+            async function revokeGitHub() {
+                const statusDiv = document.getElementById('step1Status');
+                statusDiv.innerHTML = '<div class="status info">🚫 Revoking GitHub authentication...</div>';
+                
+                try {
+                    const response = await fetch('/api/step1/revoke_github');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        statusDiv.innerHTML = `
+                            <div class="status success">
+                                ✅ GitHub authentication revoked successfully!
+                                <div class="details">${data.note}</div>
+                            </div>
+                        `;
+                        // Re-check auth status
+                        setTimeout(checkAuth, 1000);
+                    } else {
+                        statusDiv.innerHTML = `
+                            <div class="status error">
+                                ❌ Failed to revoke GitHub authentication
+                                <div class="error-details">${data.error}</div>
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    statusDiv.innerHTML = `
+                        <div class="status error">
+                            ❌ Network error: ${error.message}
+                        </div>
+                    `;
+                }
+            }
+            
+            async function discoverProjects() {
+                document.getElementById('step2Status').innerHTML = '<div class="status info">🔍 Discovering GCP projects...</div>';
+                
+                try {
+                    const response = await fetch('/api/step2/discover_projects');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        showProjectSelectionModal(data.projects);
+                        document.getElementById('step2Status').innerHTML = '<div class="status success">✅ Found ' + data.projects.length + ' GCP projects. Please select one.</div>';
+                    } else {
+                        document.getElementById('step2Status').innerHTML = '<div class="status error">❌ Error: ' + data.error + '</div>';
+                    }
+                } catch (error) {
+                    document.getElementById('step2Status').innerHTML = '<div class="status error">❌ Error: ' + error.message + '</div>';
+                }
+            }
+            
+            function showProjectSelectionModal(projects) {
+                let modalHtml = `
+                    <div class="modal-overlay" id="projectSelectionModal">
+                        <div class="modal-content">
+                            <h3>🔍 Select GCP Project</h3>
+                            <p>Found ${projects.length} GCP projects. Please select the project for deployment:</p>
+                            <div class="project-list">
+                `;
+                
+                projects.forEach(project => {
+                    modalHtml += `
+                        <div class="project-item" onclick="selectProject('${project}')">
+                            <strong>${project}</strong>
+                        </div>
+                    `;
+                });
+                
+                modalHtml += `
+                            </div>
+                            <div class="button-group">
+                                <button class="btn btn-secondary" onclick="closeProjectModal()">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+            }
+            
+            function selectProject(projectId) {
+                // Store selected project
+                window.selectedProjectId = projectId;
+                
+                // Update status
+                document.getElementById('step2Status').innerHTML = 
+                    '<div class="status success">✅ Selected project: <strong>' + projectId + '</strong></div>';
+                
+                // Enable the Setup Infrastructure button
+                const setupButton = document.querySelector('#step2 button[onclick="setupInfrastructure()"]');
+                if (setupButton) {
+                    setupButton.disabled = false;
+                }
+                
+                // Close modal
+                closeProjectModal();
+            }
+            
+            function closeProjectModal() {
+                const modal = document.getElementById('projectSelectionModal');
+                if (modal) modal.remove();
+            }
+            
+            async function discoverRepos() {
+                const statusDiv = document.getElementById('step2Status');
+                statusDiv.innerHTML = '<div class="status info">🔍 Discovering GitHub repositories...</div>';
+                
+                try {
+                    const response = await fetch('/api/step2/discover_repos');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        showRepoSelectionModal(data.repos);
+                        statusDiv.innerHTML = '<div class="status success">✅ Found ' + data.repos.length + ' GitHub repositories. Please select one.</div>';
+                    } else {
+                        statusDiv.innerHTML = `
+                            <div class="status error">
+                                ❌ Repository discovery failed
+                                <div class="error-details">${data.error}</div>
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    statusDiv.innerHTML = `
+                        <div class="status error">
+                            ❌ Network error: ${error.message}
+                        </div>
+                    `;
+                }
+            }
+            
+            function showRepoSelectionModal(repos) {
+                let modalHtml = `
+                    <div class="modal-overlay" id="repoSelectionModal">
+                        <div class="modal-content">
+                            <h3>🔍 Select GitHub Repository</h3>
+                            <p>Found ${repos.length} GitHub repositories. Please select the repository for WIF binding and secrets:</p>
+                            <div class="repo-list">
+                `;
+                
+                repos.forEach(repo => {
+                    modalHtml += `
+                        <div class="repo-item" onclick="selectRepo('${repo.full_name}')">
+                            <div class="repo-name"><strong>${repo.full_name}</strong></div>
+                            <div class="repo-description">${repo.description || 'No description'}</div>
+                            <div class="repo-url">${repo.url}</div>
+                        </div>
+                    `;
+                });
+                
+                modalHtml += `
+                            </div>
+                            <div class="button-group">
+                                <button class="btn btn-secondary" onclick="closeRepoModal()">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+            }
+            
+            async function selectRepo(repoFullName) {
+                try {
+                    const response = await fetch('/api/step2/select_repo', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({repo: repoFullName})
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        // Update status
+                        document.getElementById('step2Status').innerHTML = 
+                            '<div class="status success">✅ Selected repository: <strong>' + repoFullName + '</strong></div>';
+                        
+                        // Enable the Setup Infrastructure button
+                        const setupButton = document.querySelector('#step2 button[onclick="setupInfrastructure()"]');
+                        if (setupButton) {
+                            setupButton.disabled = false;
+                        }
+                        
+                        // Close modal
+                        closeRepoModal();
+                    } else {
+                        document.getElementById('step2Status').innerHTML = `
+                            <div class="status error">
+                                ❌ Repository selection failed
+                                <div class="error-details">${data.error}</div>
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    document.getElementById('step2Status').innerHTML = `
+                        <div class="status error">
+                            ❌ Network error: ${error.message}
+                        </div>
+                    `;
+                }
+            }
+            
+            function closeRepoModal() {
+                const modal = document.getElementById('repoSelectionModal');
+                if (modal) modal.remove();
+            }
+            
+            function showAnalysisModal(analysis) {
+                let modalHtml = `
+                    <div class="modal-overlay" id="analysisModal">
+                        <div class="modal-content analysis-modal">
+                            <div class="modal-header">
+                                <h3>🔍 Project Analysis Results</h3>
+                                <button class="close-btn" onclick="closeAnalysisModal()">×</button>
+                            </div>
+                            
+                            <div class="modal-body">
+                                <div class="analysis-section">
+                                    <h4>📁 Project Structure</h4>
+                                    <div class="analysis-grid">
+                                        <div class="analysis-item">
+                                            <span class="label">Type:</span>
+                                            <span class="value">${analysis.project_type}</span>
+                                        </div>
+                                        <div class="analysis-item">
+                                            <span class="label">Main Files:</span>
+                                            <span class="value">${(analysis.main_files || []).join(', ') || 'None'}</span>
+                                        </div>
+                                        <div class="analysis-item">
+                                            <span class="label">Dependencies:</span>
+                                            <span class="value">${(analysis.dependencies || []).join(', ') || 'None'}</span>
+                                        </div>
+                                        <div class="analysis-item">
+                                            <span class="label">Deployment Files:</span>
+                                            <span class="value">${(analysis.deployment_files || []).join(', ') || 'None'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="analysis-section">
+                                    <h4>🔐 Required Secrets (${analysis.required_secrets.length})</h4>
+                                    <div class="secrets-list">
+                `;
+                
+                analysis.required_secrets.forEach(secret => {
+                    const value = secret.value ? secret.value.substring(0, 10) + '...' : '[Not set]';
+                    modalHtml += `
+                        <div class="secret-item">
+                            <div class="secret-header">
+                                <span class="secret-name">${secret.name}</span>
+                                <span class="secret-source">${secret.source}</span>
+                            </div>
+                            <div class="secret-value">${value}</div>
+                            <div class="secret-description">${secret.description}</div>
+                        </div>
+                    `;
+                });
+                
+                modalHtml += `
+                                    </div>
+                                </div>
+                                
+                                <div class="analysis-section">
+                                    <h4>🗄️ Database Migration Analysis</h4>
+                                    <div class="analysis-grid">
+                                        <div class="analysis-item">
+                                            <span class="label">Migrations Needed:</span>
+                                            <span class="value ${analysis.migration_analysis?.needs_migrations ? 'status-success' : 'status-info'}">${analysis.migration_analysis?.needs_migrations ? '✅ Yes' : '❌ No'}</span>
+                                        </div>
+                                        <div class="analysis-item">
+                                            <span class="label">Migration Type:</span>
+                                            <span class="value">${analysis.migration_analysis?.migration_type || 'None'}</span>
+                                        </div>
+                                        <div class="analysis-item">
+                                            <span class="label">Database Types:</span>
+                                            <span class="value">${(analysis.migration_analysis?.database_types || []).join(', ') || 'None'}</span>
+                                        </div>
+                                        <div class="analysis-item">
+                                            <span class="label">Database Dependencies:</span>
+                                            <span class="value">${(analysis.migration_analysis?.database_dependencies || []).join(', ') || 'None'}</span>
+                                        </div>
+                                        <div class="analysis-item">
+                                            <span class="label">Database URLs:</span>
+                                            <span class="value">${(analysis.migration_analysis?.database_urls || []).join(', ') || 'None'}</span>
+                                        </div>
+                                        <div class="analysis-item">
+                                            <span class="label">URL Types:</span>
+                                            <span class="value">${(analysis.migration_analysis?.url_types || []).join(', ') || 'None'}</span>
+                                        </div>
+                                        <div class="analysis-item">
+                                            <span class="label">Migration Files:</span>
+                                            <span class="value">${(analysis.migration_analysis?.migration_files || []).join(', ') || 'None'}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="migration-recommendations">
+                                        <h5>Migration Recommendations:</h5>
+                                        <ul class="recommendations-list">
+                `;
+                
+                (analysis.migration_analysis?.migration_recommendations || []).forEach(rec => {
+                    modalHtml += `<li>${rec}</li>`;
+                });
+                
+                modalHtml += `
+                                        </ul>
+                                    </div>
+                                </div>
+                                
+                                <div class="analysis-section">
+                                    <h4>💡 General Recommendations</h4>
+                                    <ul class="recommendations-list">
+                `;
+                
+                analysis.recommendations.forEach(rec => {
+                    modalHtml += `<li>${rec}</li>`;
+                });
+                
+                modalHtml += `
+                                    </ul>
+                                </div>
+                            </div>
+                            
+                            <div class="modal-footer">
+                                <div class="button-group">
+                                    <button class="btn btn-secondary" onclick="closeAnalysisModal()">Close</button>
+                                    <button class="btn btn-primary" onclick="proceedToSecrets()">📤 Proceed to Secrets</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+            }
+            
+            function proceedToSecrets() {
+                closeAnalysisModal();
+                // Enable the Push Secrets button
+                const pushSecretsButton = document.querySelector('#step4 button[onclick="pushSecrets()"]');
+                if (pushSecretsButton) {
+                    pushSecretsButton.disabled = false;
+                }
+                // Scroll to step 4
+                document.getElementById('step4').scrollIntoView({ behavior: 'smooth' });
+            }
+            
+            function closeAnalysisModal() {
+                const modal = document.getElementById('analysisModal');
+                if (modal) modal.remove();
+            }
+            
+            async function setupInfrastructure() {
+                const statusDiv = document.getElementById('step2Status');
+                statusDiv.innerHTML = '<div class="status info">🔧 Setting up infrastructure...</div>';
+                
+                // Add loading animation
+                const loadingHtml = `
+                    <div class="status info">
+                        <div class="loading-spinner"></div>
+                        🔧 Setting up infrastructure...
+                        <div class="progress-steps">
+                            <div class="step">1. Enabling APIs...</div>
+                            <div class="step">2. Creating service account...</div>
+                            <div class="step">3. Setting up WIF...</div>
+                        </div>
+                    </div>
+                `;
+                statusDiv.innerHTML = loadingHtml;
+                
+                try {
+                    const response = await fetch('/api/step2/setup_infrastructure');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        let wifStatus = data.wif_binding_success ? 
+                            `<span class="success">✅ WIF Binding: Success</span>` : 
+                            `<span class="warning">⚠️ WIF Binding: Manual setup required</span>`;
+                        
+                        statusDiv.innerHTML = `
+                            <div class="status success">
+                                ✅ Infrastructure setup completed!
+                                <div class="details">
+                                    <strong>Project:</strong> ${data.project_id}<br>
+                                    <strong>Service Account:</strong> ${data.service_account}<br>
+                                    <strong>WIF Pool:</strong> ${data.workload_identity_pool}<br>
+                                    <strong>GitHub Repo:</strong> ${data.github_repo}<br>
+                                    <strong>WIF Status:</strong> ${wifStatus}
+                                </div>
+                            </div>
+                        `;
+                        
+                        // Enable the next step button
+                        const analyzeButton = document.querySelector('#step3 button[onclick="analyzeProject()"]');
+                        if (analyzeButton) {
+                            analyzeButton.disabled = false;
+                        }
+                    } else {
+                        statusDiv.innerHTML = `
+                            <div class="status error">
+                                ❌ Infrastructure setup failed
+                                <div class="error-details">${data.error}</div>
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    statusDiv.innerHTML = `
+                        <div class="status error">
+                            ❌ Network error: ${error.message}
+                        </div>
+                    `;
+                }
+            }
+            
+            async function analyzeProject() {
+                const statusDiv = document.getElementById('step3Status');
+                statusDiv.innerHTML = '<div class="status info">🔍 Analyzing project structure...</div>';
+                
+                try {
+                    const response = await fetch('/api/analyze_project');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        const analysis = data.analysis;
+                        statusDiv.innerHTML = `
+                            <div class="status success">
+                                ✅ Project analyzed successfully!
+                                                        <div class="details">
+                            <strong>Type:</strong> ${analysis.project_type}<br>
+                            <strong>Main Files:</strong> ${(analysis.main_files || []).join(', ') || 'None'}<br>
+                            <strong>Dependencies:</strong> ${(analysis.dependencies || []).join(', ') || 'None'}<br>
+                            <strong>Required Secrets:</strong> ${analysis.required_secrets ? analysis.required_secrets.length : 0} found
+                        </div>
+                            </div>
+                        `;
+                        
+                        // Show analysis results in a modal
+                        showAnalysisModal(analysis);
+                        
+                        // Enable the next step buttons
+                        const pushButton = document.querySelector('#step4 button[onclick="pushSecrets()"]');
+                        if (pushButton) {
+                            pushButton.disabled = false;
+                        }
+                        const workflowButton = document.querySelector('#step5 button[onclick="generateWorkflowOnly()"]');
+                        if (workflowButton) {
+                            workflowButton.disabled = false;
+                        }
+                    } else {
+                        statusDiv.innerHTML = `
+                            <div class="status error">
+                                ❌ Analysis failed
+                                <div class="error-details">${data.error}</div>
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    statusDiv.innerHTML = `
+                        <div class="status error">
+                            ❌ Network error: ${error.message}
+                        </div>
+                    `;
+                }
+            }
+            
+            async function pushSecrets() {
+                document.getElementById('step4Status').innerHTML = '<div class="status info">📤 Pushing secrets...</div>';
+                
+                try {
+                    // Get secrets from project analysis or use default GCP secrets
+                    const secrets = [
+                        {
+                            name: 'GCP_PROJECT_ID',
+                            value: 'neurofinance-468916',
+                            description: 'GCP Project ID for deployment'
+                        },
+                        {
+                            name: 'GCP_REGION',
+                            value: 'us-central1',
+                            description: 'GCP Region for deployment'
+                        },
+                        {
+                            name: 'WIF_PROVIDER',
+                            value: 'projects/71586032565/locations/global/workloadIdentityPools/github-actions-pool-1755753182/providers/github-actions-provider',
+                            description: 'Workload Identity Federation Provider'
+                        },
+                        {
+                            name: 'DEPLOY_SA_EMAIL',
+                            value: 'gha-deployer@neurofinance-468916.iam.gserviceaccount.com',
+                            description: 'GCP Service Account Email for deployment'
+                        }
+                    ];
+                    
+                    const response = await fetch('/api/step4/push_secrets', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({secrets: secrets})
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        document.getElementById('step4Status').innerHTML = '<div class="status success">✅ Secrets pushed successfully!<br>Pushed: ' + (data.pushed_secrets || []).join(', ') + '</div>';
+                        // Enable the workflow generation button
+                        const workflowButton = document.querySelector('#step5 button[onclick="generateWorkflowOnly()"]');
+                        if (workflowButton) {
+                            workflowButton.disabled = false;
+                        }
+                    } else {
+                        document.getElementById('step4Status').innerHTML = '<div class="status error">❌ Error: ' + data.error + '</div>';
+                    }
+                } catch (error) {
+                    document.getElementById('step4Status').innerHTML = '<div class="status error">❌ Error: ' + error.message + '</div>';
+                }
+            }
+            
+            async function generateWorkflowOnly() {
+                document.getElementById('step5Status').innerHTML = '<div class="status info">📝 Generating workflow YAML...</div>';
+                
+                try {
+                    const response = await fetch('/api/step5/generate_workflow_only', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'}
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        document.getElementById('step5Status').innerHTML = '<div class="status success">✅ Workflow YAML generated! 📝</div>';
+                        // Enable the Dockerfile generation button
+                        const dockerfileButton = document.querySelector('#step5 button[onclick="generateDockerfileOnly()"]');
+                        if (dockerfileButton) {
+                            dockerfileButton.disabled = false;
+                        }
+                    } else {
+                        document.getElementById('step5Status').innerHTML = '<div class="status error">❌ Error: ' + data.error + '</div>';
+                    }
+                } catch (error) {
+                    document.getElementById('step5Status').innerHTML = '<div class="status error">❌ Error: ' + error.message + '</div>';
+                }
+            }
+            
+            async function generateDockerfileOnly() {
+                document.getElementById('step5Status').innerHTML = '<div class="status info">🐳 Generating Dockerfile...</div>';
+                
+                try {
+                    const response = await fetch('/api/step5_5/generate_dockerfile_only', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'}
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        document.getElementById('step5Status').innerHTML = '<div class="status success">✅ Dockerfile generated! 🐳</div>';
+                        // Enable the step 6 deployment buttons
+                        const showGuideButton = document.querySelector('#step6 button[onclick="showDeploymentGuide()"]');
+                        const copyCommandsButton = document.querySelector('#step6 button[onclick="copyDeploymentCommands()"]');
+                        const checkStatusButton = document.querySelector('#step6 button[onclick="checkDeploymentStatus()"]');
+                        if (showGuideButton) showGuideButton.disabled = false;
+                        if (copyCommandsButton) copyCommandsButton.disabled = false;
+                        if (checkStatusButton) checkStatusButton.disabled = false;
+                    } else {
+                        document.getElementById('step5Status').innerHTML = '<div class="status error">❌ Error: ' + data.error + '</div>';
+                    }
+                } catch (error) {
+                    document.getElementById('step5Status').innerHTML = '<div class="status error">❌ Error: ' + error.message + '</div>';
+                }
+            }
+            
+            async function commitAndPush() {
+                document.getElementById('step6Status').innerHTML = '<div class="status info">💾 Committing and pushing...</div>';
+                
+                try {
+                    const response = await fetch('/api/step6/commit_and_push_enhanced', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({generate_files: true})
+                    });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        document.getElementById('step6Status').innerHTML = '<div class="status success">✅ Code pushed to GitHub! 🚀</div>';
+                    } else if (data.manual_push_required) {
+                        // Show comprehensive manual push solution
+                        let manualPushHtml = `
+                            <div class="status warning">
+                                ⚠️ GitHub OAuth Restriction - Manual Push Required
+                                <div class="details">
+                                    <strong>Files Generated:</strong> ${data.files_to_push.join(', ')}<br>
+                                    <strong>Branch:</strong> ${data.branch}<br>
+                                    <strong>Reason:</strong> GitHub OAuth apps cannot create workflow files for security
+                                </div>
+                                
+                                <div class="solution-options">
+                                    <h4>🚀 Solution Options:</h4>
+                                    
+                                    <div class="option-card">
+                                        <h5>Option 1: Manual Push (Recommended)</h5>
+                                        <p>Run these commands in your terminal:</p>
+                                        <div class="code-block">
+                                            <code>cd /Applications/NeuroPOC/embeddingforpinecon<br>
+git add Dockerfile<br>
+git add .github/workflows/deploy-cloudrun.yml<br>
+git commit -m "Setup CI/CD pipeline with smart deployment configuration"<br>
+git push origin main</code>
+                                        </div>
+                                        <button class="btn btn-primary" onclick="copyManualCommands()">📋 Copy Commands</button>
+                                    </div>
+                                    
+                                    <div class="option-card">
+                                        <h5>Option 2: Use Personal Access Token</h5>
+                                        <p>Configure GitHub CLI with a Personal Access Token:</p>
+                                        <div class="code-block">
+                                            <code>gh auth login --with-token < YOUR_PAT_TOKEN</code>
+                                        </div>
+                                        <button class="btn btn-secondary" onclick="showPATInstructions()">📋 Show PAT Setup</button>
+                                    </div>
+                                    
+                                    <div class="option-card">
+                                        <h5>Option 3: GitHub Desktop</h5>
+                                        <p>Use GitHub Desktop to push the changes:</p>
+                                        <ol>
+                                            <li>Open GitHub Desktop</li>
+                                            <li>Add the repository: /Applications/NeuroPOC/embeddingforpinecon</li>
+                                            <li>Commit the changes</li>
+                                            <li>Push to origin</li>
+                                        </ol>
+                                    </div>
+                                </div>
+                                
+                                <div class="button-group">
+                                    <button class="btn btn-success" onclick="checkPushStatus()">🔄 Check Push Status</button>
+                                    <button class="btn btn-info" onclick="openGitHubRepo()">🌐 Open GitHub Repo</button>
+                                </div>
+                            </div>
+                        `;
+                        document.getElementById('step6Status').innerHTML = manualPushHtml;
+                    } else {
+                        document.getElementById('step6Status').innerHTML = '<div class="status error">❌ Error: ' + data.error + '</div>';
+                    }
+                } catch (error) {
+                    document.getElementById('step6Status').innerHTML = '<div class="status error">❌ Error: ' + error.message + '</div>';
+                }
+            }
+            
+            function showManualPushInstructions() {
+                const commands = `
+# Manual push commands for GitHub OAuth restriction
+git add Dockerfile
+git add .github/workflows/deploy-cloudrun.yml
+git commit -m "Setup CI/CD pipeline with smart deployment configuration"
+git push origin main
+                `.trim();
+                
+                alert('Manual push commands:\n\n' + commands);
+            }
+            
+            function copyManualCommands() {
+                const commands = `cd /Applications/NeuroPOC/embeddingforpinecon\ngit add Dockerfile\ngit add .github/workflows/deploy-cloudrun.yml\ngit commit -m "Setup CI/CD pipeline with smart deployment configuration"\ngit push origin main`;
+                
+                navigator.clipboard.writeText(commands).then(function() {
+                    alert('✅ Commands copied to clipboard! Paste them in your terminal.');
+                }).catch(function(err) {
+                    console.error('Failed to copy: ', err);
+                    // Fallback: show in alert
+                    alert('Commands:\n\n' + commands);
+                });
+            }
+            
+            function showPATInstructions() {
+                const patInstructions = `
+🔐 Personal Access Token Setup:
+
+1. Go to GitHub.com → Settings → Developer settings → Personal access tokens
+2. Generate new token (classic) with these permissions:
+   - repo (full control)
+   - workflow (for workflow files)
+   - admin:org (if needed)
+
+3. Copy the token and run:
+   gh auth login --with-token < YOUR_TOKEN
+
+4. Then try the push again from the toolbox.
+                `.trim();
+                
+                alert(patInstructions);
+            }
+            
+            async function checkPushStatus() {
+                const statusDiv = document.getElementById('step6Status');
+                statusDiv.innerHTML = '<div class="status info">🔄 Checking push status...</div>';
+                
+                try {
+                    const response = await fetch('/api/step6/check_push_status');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        if (data.files_pushed) {
+                            statusDiv.innerHTML = `
+                                <div class="status success">
+                                    ✅ Files successfully pushed to GitHub!
+                                    <div class="details">
+                                        <strong>Pushed files:</strong> ${data.pushed_files.join(', ')}<br>
+                                        <strong>Commit:</strong> ${data.commit_hash}<br>
+                                        <strong>Branch:</strong> ${data.branch}
+                                    </div>
+                                    <div class="button-group">
+                                        <button class="btn btn-info" onclick="openGitHubRepo()">🌐 View on GitHub</button>
+                                        <button class="btn btn-success" onclick="checkWorkflowStatus()">🚀 Check Workflow</button>
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            statusDiv.innerHTML = `
+                                <div class="status warning">
+                                    ⚠️ Files not yet pushed
+                                    <div class="details">
+                                        <strong>Local files:</strong> ${data.local_files.join(', ')}<br>
+                                        <strong>Status:</strong> ${data.status}
+                                    </div>
+                                    <div class="button-group">
+                                        <button class="btn btn-primary" onclick="copyManualCommands()">📋 Copy Push Commands</button>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    } else {
+                        statusDiv.innerHTML = `<div class="status error">❌ Error checking status: ${data.error}</div>`;
+                    }
+                } catch (error) {
+                    statusDiv.innerHTML = `<div class="status error">❌ Network error: ${error.message}</div>`;
+                }
+            }
+            
+            function openGitHubRepo() {
+                window.open('https://github.com/PramodChandrayan/neurochatagent', '_blank');
+            }
+            
+            async function checkWorkflowStatus() {
+                window.open('https://github.com/PramodChandrayan/neurochatagent/actions', '_blank');
+            }
+            
+            // Deployment Guide Functions
+            function showDeploymentGuide() {
+                const statusDiv = document.getElementById('step6Status');
+                const deploymentGuide = `
+                    <div class="status success">
+                        <h4>🚀 Deployment Guide</h4>
+                        <div class="terminal-simulation">
+                            <div class="terminal-header">Terminal Commands:</div>
+                            <div class="terminal-content">
+                                <div class="terminal-line"># Navigate to your project directory</div>
+                                <div class="terminal-line">cd /Applications/NeuroPOC/embeddingforpinecon</div>
+                                <div class="terminal-line"></div>
+                                <div class="terminal-line"># Add all generated files</div>
+                                <div class="terminal-line">git add .</div>
+                                <div class="terminal-line"></div>
+                                <div class="terminal-line"># Commit with descriptive message</div>
+                                <div class="terminal-line">git commit -m "🚀 Deploy: Add CI/CD workflow and Dockerfile"</div>
+                                <div class="terminal-line"></div>
+                                <div class="terminal-line"># Push to GitHub (this will trigger the workflow)</div>
+                                <div class="terminal-line">git push origin main</div>
+                                <div class="terminal-line"></div>
+                                <div class="terminal-line"># Check workflow status</div>
+                                <div class="terminal-line">gh run list --limit 1</div>
+                            </div>
+                        </div>
+                        <div class="details">
+                            <strong>What happens next:</strong><br>
+                            1. GitHub Actions will automatically build your Docker image<br>
+                            2. Deploy to Google Cloud Run<br>
+                            3. Your app will be available at the provided URL<br>
+                            4. Monitor deployment at: <a href="https://github.com/PramodChandrayan/neurochatagent/actions" target="_blank">GitHub Actions</a>
+                        </div>
+                    </div>
+                `;
+                statusDiv.innerHTML = deploymentGuide;
+            }
+            
+            function copyDeploymentCommands() {
+                const commands = `cd /Applications/NeuroPOC/embeddingforpinecon
+git add .
+git commit -m "🚀 Deploy: Add CI/CD workflow and Dockerfile"
+git push origin main
+gh run list --limit 1`;
+                
+                navigator.clipboard.writeText(commands).then(function() {
+                    const statusDiv = document.getElementById('step6Status');
+                    statusDiv.innerHTML = `
+                        <div class="status success">
+                            ✅ Deployment commands copied to clipboard!
+                            <div class="details">Paste them in your terminal to deploy</div>
+                        </div>
+                    `;
+                }).catch(function(err) {
+                    console.error('Failed to copy: ', err);
+                    alert('Failed to copy commands. Please copy them manually.');
+                });
+            }
+            
+            async function checkDeploymentStatus() {
+                const statusDiv = document.getElementById('step6Status');
+                statusDiv.innerHTML = '<div class="status info">🔍 Checking deployment status...</div>';
+                
+                try {
+                    const response = await fetch('/api/step6/check_push_status');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        if (data.files_pushed) {
+                            statusDiv.innerHTML = `
+                                <div class="status success">
+                                    ✅ Files successfully pushed to GitHub!
+                                    <div class="details">
+                                        <strong>Pushed files:</strong> ${data.pushed_files.join(', ')}<br>
+                                        <strong>Commit:</strong> ${data.commit_hash}<br>
+                                        <strong>Branch:</strong> ${data.branch}
+                                    </div>
+                                    <div class="button-group">
+                                        <button class="btn btn-info" onclick="window.open('https://github.com/PramodChandrayan/neurochatagent', '_blank')">🌐 View on GitHub</button>
+                                        <button class="btn btn-success" onclick="window.open('https://github.com/PramodChandrayan/neurochatagent/actions', '_blank')">🚀 Check Workflow</button>
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            statusDiv.innerHTML = `
+                                <div class="status warning">
+                                    ⚠️ Files not yet pushed
+                                    <div class="details">
+                                        <strong>Local files:</strong> ${data.local_files.join(', ')}<br>
+                                        <strong>Status:</strong> ${data.status}
+                                    </div>
+                                    <div class="button-group">
+                                        <button class="btn btn-primary" onclick="copyDeploymentCommands()">📋 Copy Push Commands</button>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    } else {
+                        statusDiv.innerHTML = `<div class="status error">❌ Error checking status: ${data.error}</div>`;
+                    }
+                } catch (error) {
+                    statusDiv.innerHTML = `<div class="status error">❌ Network error: ${error.message}</div>`;
+                }
+            }
+            
+            // Test function to verify JavaScript is loaded
+            function testJavaScript() {
+                console.log('JavaScript is working!');
+                alert('JavaScript is working!');
+            }
+        </script>
+    </body>
