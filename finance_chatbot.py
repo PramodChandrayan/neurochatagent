@@ -10,6 +10,7 @@ import openai
 from pinecone import Pinecone
 from models import User, ChatSession, ChatMessage, get_session, create_tables
 from datetime import datetime
+from config import config
 
 class FinanceChatbot:
     def __init__(self):
@@ -19,7 +20,7 @@ class FinanceChatbot:
         
         # Initialize Pinecone
         self.pinecone = Pinecone(api_key=os.getenv('PINECONE_API_KEY'))
-        self.index = self.pinecone.Index("finance-knowledge")
+        self.index = self.pinecone.Index(config.PINECONE_INDEX_NAME)
         
         # Initialize database
         self.setup_database()
