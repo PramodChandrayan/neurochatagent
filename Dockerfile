@@ -34,9 +34,6 @@ RUN pip install --no-cache-dir alembic
 # Copy application code
 COPY . .
 
-# Initialize database tables
-RUN python -c "from models import create_tables; create_tables()" || echo "Database initialization skipped (no database connection)"
-
 # Create necessary directories
 RUN mkdir -p /app/logs /app/data /app/database
 
