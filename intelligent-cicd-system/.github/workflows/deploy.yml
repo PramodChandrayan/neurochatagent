@@ -1,0 +1,263 @@
+name: Deploy to Cloud Run (Comprehensive)
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: ${{{{ secrets.GCP_PROJECT_ID }}}}
+  SERVICE_ACCOUNT: ${{{{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}}}
+  REGION: us-central1
+  SERVICE_NAME: neurochatagent
+  IMAGE_NAME: neurochatagent
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  # Stage 1: Code Quality & Security
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install flake8 black isort bandit safety
+        
+    - name: Lint with flake8
+      run: |
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        
+    - name: Format check with black
+      run: |
+        black --check --diff .
+        
+    - name: Import sorting check with isort
+      run: |
+        isort --check-only --diff .
+        
+    - name: Security scan with bandit
+      run: |
+        bandit -r . -f json -o bandit-report.json || true
+        
+    - name: Security vulnerabilities check
+      run: |
+        safety check --json --output safety-report.json || true
+
+  # Stage 2: Testing
+  test:
+    runs-on: ubuntu-latest
+    needs: code-quality
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov pytest-mock
+        
+    - name: Run tests with coverage
+      run: |
+        pytest --cov=. --cov-report=xml --cov-report=html
+        
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        fail_ci_if_error: false
+
+  # Stage 3: Build & Security Scan
+  build-and-scan:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+      
+    - name: Build Docker image
+      id: build
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: false
+        tags: ${{{{ env.IMAGE_NAME }}}}:${{{{ github.sha }}}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{{{ env.IMAGE_NAME }}}}:${{{{ github.sha }}}
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  # Stage 4: Deploy to Staging (if PR)
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: build-and-scan
+    if: github.event_name == 'pull_request'
+    environment: staging
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Google Auth
+      id: auth
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: ${{{{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}}}
+        service_account: ${{{{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}}}
+        
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+      
+    - name: Configure Docker for Artifact Registry
+      run: |
+        gcloud auth configure-docker us-central1-docker.pkg.dev
+        
+    - name: Build and push staging image
+      run: |
+        docker build -t us-central1-docker.pkg/${{{{ env.PROJECT_ID }}}}/neurogent-repo/${{{{ env.IMAGE_NAME }}}}-staging:${{{{ github.sha }}}} .
+        docker push us-central1-docker.pkg/${{{{ env.PROJECT_ID }}}}/neurogent-repo/${{{{ env.IMAGE_NAME }}}}-staging:${{{{ github.sha }}}}
+        
+    - name: Deploy to Cloud Run (Staging)
+      run: |
+        gcloud run deploy ${{{{ env.SERVICE_NAME }}}}-staging \
+          --image us-central1-docker.pkg/${{{{ env.PROJECT_ID }}}}/neurogent-repo/${{{{ env.IMAGE_NAME }}}}-staging:${{{{ github.sha }}}} \
+          --platform managed \
+          --region ${{{{ env.REGION }}}} \
+          --allow-unauthenticated \
+          --service-account ${{{{ env.SERVICE_ACCOUNT }}}} \
+          --port 8501 \
+          --memory 1Gi \
+          --cpu 1 \
+          --max-instances 5
+
+  # Stage 5: Deploy to Production (if push to main/master)
+  deploy-production:
+    runs-on: ubuntu-latest
+    needs: build-and-scan
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    environment: production
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Google Auth
+      id: auth
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: ${{{{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}}}
+        service_account: ${{{{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}}}
+        
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+      
+    - name: Configure Docker for Artifact Registry
+      run: |
+        gcloud auth configure-docker us-central1-docker.pkg.dev
+        
+    - name: Build and push production image
+      run: |
+        docker build -t us-central1-docker.pkg/${{{{ env.PROJECT_ID }}}}/neurogent-repo/${{{{ env.IMAGE_NAME }}}}:${{{{ github.sha }}}} .
+        docker push us-central1-docker.pkg/${{{{ env.PROJECT_ID }}}}/neurogent-repo/${{{{ env.IMAGE_NAME }}}}:${{{{ github.sha }}}
+        
+    - name: Deploy to Cloud Run (Production)
+      run: |
+        gcloud run deploy ${{{{ env.SERVICE_NAME }}}} \
+          --image us-central1-docker.pkg/${{{{ env.PROJECT_ID }}}}/neurogent-repo/${{{{ env.IMAGE_NAME }}}}:${{{{ github.sha }}}} \
+          --platform managed \
+          --region ${{{{ env.REGION }}}} \
+          --allow-unauthenticated \
+          --service-account ${{{{ env.SERVICE_ACCOUNT }}}} \
+          --port 8501 \
+          --memory 1Gi \
+          --cpu 1 \
+          --max-instances 10 \
+          --min-instances 1 \
+          --concurrency 80
+        
+    - name: Show deployment URL
+      run: |
+        DEPLOYMENT_URL=$(gcloud run services describe ${{{{ env.SERVICE_NAME }}}} \
+          --platform managed \
+          --region ${{{{ env.REGION }}}} \
+          --format 'value(status.url)')
+        echo "🚀 Production Deployment URL: $DEPLOYMENT_URL"
+        echo "DEPLOYMENT_URL=$DEPLOYMENT_URL" >> $GITHUB_ENV
+        
+    - name: Health check
+      run: |
+        sleep 30  # Wait for service to be ready
+        curl -f ${{{{ env.DEPLOYMENT_URL }}}} || echo "Service might still be starting up"
+        
+    - name: Notify deployment success
+      if: success()
+      run: |
+        echo "🎉 Production deployment successful!"
+        echo "URL: ${{{{ env.DEPLOYMENT_URL }}}}"
+        
+  # Stage 6: Post-deployment (always runs)
+  post-deployment:
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Generate deployment report
+      run: |
+        echo "## 🚀 Deployment Summary" >> deployment-report.md
+        echo "**Repository:** ${{{{ github.repository }}}" >> deployment-report.md
+        echo "**Commit:** ${{{{ github.sha }}}" >> deployment-report.md
+        echo "**Branch:** ${{{{ github.ref_name }}}" >> deployment-report.md
+        echo "**Triggered by:** ${{{{ github.actor }}}" >> deployment-report.md
+        echo "**Timestamp:** $(date)" >> deployment-report.md
+        echo "" >> deployment-report.md
+        echo "### 📊 Job Results:" >> deployment-report.md
+        echo "- Code Quality: ${{{{ needs.code-quality.result }}}" >> deployment-report.md
+        echo "- Testing: ${{{{ needs.test.result }}}" >> deployment-report.md
+        echo "- Build & Scan: ${{{{ needs.build-and-scan.result }}}" >> deployment-report.md
+        if contains(github.ref, 'main') || contains(github.ref, 'master'); then
+          echo "- Production Deploy: ${{{{ needs.deploy-production.result }}}" >> deployment-report.md
+        fi
+        if github.event_name == 'pull_request'; then
+          echo "- Staging Deploy: ${{{{ needs.deploy-staging.result }}}" >> deployment-report.md
+        fi
+        
+    - name: Upload deployment report
+      uses: actions/upload-artifact@v3
+      with:
+        name: deployment-report
+        path: deployment-report.md

@@ -1,0 +1,241 @@
+# 🚀 Deployment Configuration for CI/CD Pipeline
+# This file defines deployment configurations for different environments
+
+# Environment-specific configurations
+environments:
+  staging:
+    name: "Staging Environment"
+    description: "Pre-production testing environment"
+    url: "https://neurogent-finance-assistant-staging-{hash}-{region}.run.app"
+    auto_deploy: true
+    required_reviews: 1
+    protection_rules:
+      - required_reviewers: ["PramodChandrayan"]
+      - required_status_checks: ["security-scan", "test-and-validate"]
+      - restrict_pushes: false
+    scaling:
+      min_instances: 0
+      max_instances: 10
+      concurrency: 80
+    resources:
+      cpu: "1"
+      memory: "2Gi"
+    secrets:
+      - OPENAI_API_KEY
+      - PINECONE_API_KEY
+      - PINECONE_ENVIRONMENT
+      - PINECONE_INDEX_NAME
+
+  production:
+    name: "Production Environment"
+    description: "Live production environment"
+    url: "https://neurogent-finance-assistant-{hash}-{region}.run.app"
+    auto_deploy: false
+    required_reviews: 2
+    protection_rules:
+      - required_reviewers: ["PramodChandrayan"]
+      - required_status_checks: ["security-scan", "test-and-validate", "deploy-staging"]
+      - restrict_pushes: true
+      - restrict_deletions: true
+    scaling:
+      min_instances: 1
+      max_instances: 100
+      concurrency: 80
+    resources:
+      cpu: "2"
+      memory: "4Gi"
+    secrets:
+      - OPENAI_API_KEY
+      - PINECONE_API_KEY
+      - PINECONE_ENVIRONMENT
+      - PINECONE_INDEX_NAME
+
+# Deployment strategies
+deployment_strategies:
+  blue_green:
+    name: "Blue-Green Deployment"
+    description: "Zero-downtime deployment with traffic switching"
+    steps:
+      - name: "Deploy new version (Green)"
+        action: "deploy"
+        traffic: 0
+      - name: "Health check new version"
+        action: "health_check"
+        timeout: 60
+      - name: "Switch traffic to new version"
+        action: "traffic_switch"
+        traffic: 100
+      - name: "Remove old version (Blue)"
+        action: "cleanup"
+        delay: 300
+
+  canary:
+    name: "Canary Deployment"
+    description: "Gradual rollout with traffic splitting"
+    steps:
+      - name: "Deploy to 10% traffic"
+        action: "deploy"
+        traffic: 10
+      - name: "Monitor metrics"
+        action: "monitor"
+        duration: 300
+      - name: "Deploy to 50% traffic"
+        action: "deploy"
+        traffic: 50
+      - name: "Monitor metrics"
+        action: "monitor"
+        duration: 300
+      - name: "Deploy to 100% traffic"
+        action: "deploy"
+        traffic: 100
+
+  rolling:
+    name: "Rolling Update"
+    description: "Gradual instance replacement"
+    steps:
+      - name: "Update instances gradually"
+        action: "rolling_update"
+        batch_size: 1
+        delay: 30
+
+# Rollback strategies
+rollback_strategies:
+  automatic:
+    name: "Automatic Rollback"
+    triggers:
+      - error_rate_threshold: 5.0
+      - response_time_threshold: 5000
+      - health_check_failures: 3
+    actions:
+      - revert_to_previous_version
+      - notify_team
+      - create_incident_ticket
+
+  manual:
+    name: "Manual Rollback"
+    triggers:
+      - manual_approval
+    actions:
+      - select_rollback_version
+      - confirm_rollback
+      - execute_rollback
+
+# Monitoring and alerting
+monitoring:
+  metrics:
+    - name: "Response Time"
+      threshold: 5000
+      unit: "ms"
+    - name: "Error Rate"
+      threshold: 2.0
+      unit: "%"
+    - name: "CPU Usage"
+      threshold: 80
+      unit: "%"
+    - name: "Memory Usage"
+      threshold: 85
+      unit: "%"
+
+  alerts:
+    - name: "High Error Rate"
+      condition: "error_rate > 5%"
+      severity: "critical"
+      channels: ["slack", "email"]
+    - name: "High Response Time"
+      condition: "response_time > 10s"
+      severity: "warning"
+      channels: ["slack"]
+    - name: "Service Down"
+      condition: "health_check_failed"
+      severity: "critical"
+      channels: ["slack", "email", "pagerduty"]
+
+# Security and compliance
+security:
+  scanning:
+    - type: "vulnerability"
+      tool: "trivy"
+      schedule: "daily"
+    - type: "dependency"
+      tool: "safety"
+      schedule: "on_push"
+    - type: "secret"
+      tool: "gitleaks"
+      schedule: "on_push"
+    - type: "container"
+      tool: "trivy"
+      schedule: "on_build"
+
+  compliance:
+    - standard: "OWASP Top 10"
+      checks: ["sql_injection", "xss", "csrf"]
+    - standard: "CIS Docker Benchmark"
+      checks: ["container_security", "image_security"]
+    - standard: "GCP Security Best Practices"
+      checks: ["iam_least_privilege", "network_security"]
+
+# Performance and optimization
+performance:
+  optimization:
+    - type: "image_optimization"
+      actions: ["multi_stage_build", "layer_caching", "compression"]
+    - type: "deployment_optimization"
+      actions: ["blue_green", "canary", "rolling"]
+    - type: "monitoring_optimization"
+      actions: ["real_time_metrics", "auto_scaling", "load_balancing"]
+
+  benchmarks:
+    - name: "Cold Start Time"
+      target: "< 5s"
+      measurement: "time_to_first_byte"
+    - name: "Warm Response Time"
+      target: "< 1s"
+      measurement: "average_response_time"
+    - name: "Throughput"
+      target: "> 1000 req/s"
+      measurement: "requests_per_second"
+
+# Notification and communication
+notifications:
+  channels:
+    - name: "Slack"
+      webhook: "${{ secrets.SLACK_WEBHOOK }}"
+      events: ["deployment_start", "deployment_success", "deployment_failure", "rollback"]
+    - name: "Email"
+      recipients: ["team@neurogent.ai"]
+      events: ["deployment_failure", "rollback", "security_alert"]
+    - name: "PagerDuty"
+      service_key: "${{ secrets.PAGERDUTY_SERVICE_KEY }}"
+      events: ["critical_alert", "service_down"]
+
+  templates:
+    deployment_success:
+      subject: "✅ Deployment Successful - {service} to {environment}"
+      body: |
+        Service: {service}
+        Environment: {environment}
+        Version: {version}
+        Deployed by: {deployer}
+        Time: {timestamp}
+        URL: {url}
+
+    deployment_failure:
+      subject: "❌ Deployment Failed - {service} to {environment}"
+      body: |
+        Service: {service}
+        Environment: {environment}
+        Error: {error}
+        Deployed by: {deployer}
+        Time: {timestamp}
+        Rollback: {rollback_url}
+
+    rollback_executed:
+      subject: "🔄 Rollback Executed - {service} in {environment}"
+      body: |
+        Service: {service}
+        Environment: {environment}
+        Rolled back from: {from_version}
+        Rolled back to: {to_version}
+        Reason: {reason}
+        Executed by: {executor}
+        Time: {timestamp}
