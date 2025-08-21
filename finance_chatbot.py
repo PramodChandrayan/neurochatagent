@@ -20,7 +20,9 @@ class FinanceChatbot:
         
         # Initialize Pinecone
         self.pinecone = Pinecone(api_key=os.getenv('PINECONE_API_KEY'))
-        self.index = self.pinecone.Index(config.PINECONE_INDEX_NAME)
+        self.index_name = config.PINECONE_INDEX_NAME
+        self.index = self.pinecone.Index(self.index_name)
+        self.namespace = config.PINECONE_NAMESPACE
         
         # Initialize database
         self.setup_database()
