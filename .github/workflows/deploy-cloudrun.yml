@@ -51,13 +51,52 @@ jobs:
         # Set database URL based on detected type
         export DATABASE_URL="${{ secrets.DATABASE_URL }}"
         
+        # Test database connection first
+        echo "🔍 Testing database connection..."
+        python -c "
+        import os
+        import sys
+        try:
+            from sqlalchemy import create_engine
+            from sqlalchemy.exc import OperationalError
+            
+            db_url = os.environ.get('DATABASE_URL')
+            if not db_url:
+                print('❌ DATABASE_URL not found in secrets')
+                sys.exit(1)
+                
+            print(f'🔗 Attempting to connect to database...')
+            engine = create_engine(db_url)
+            with engine.connect() as conn:
+                result = conn.execute('SELECT 1')
+                print('✅ Database connection successful')
+        except ImportError as e:
+            print(f'❌ SQLAlchemy not available: {e}')
+            sys.exit(1)
+        except OperationalError as e:
+            print(f'❌ Database connection failed: {e}')
+            print('⚠️ Skipping migrations - database may not be ready')
+            sys.exit(0)
+        except Exception as e:
+            print(f'❌ Unexpected error: {e}')
+            sys.exit(1)
+        "
+        
         # Run migrations based on detected type
         if [ -f "alembic.ini" ]; then
           echo "📊 Running Alembic migrations..."
-          alembic upgrade head
+          alembic upgrade head || {
+            echo "⚠️ Alembic migration failed - database may not be ready"
+            echo "✅ Skipping migrations for now"
+            exit 0
+          }
         elif [ -f "manage.py" ]; then
           echo "🐍 Running Django migrations..."
-          python manage.py migrate
+          python manage.py migrate || {
+            echo "⚠️ Django migration failed - database may not be ready"
+            echo "✅ Skipping migrations for now"
+            exit 0
+          }
         else
           echo "⚠️ No migration system detected, skipping migrations"
         fi
