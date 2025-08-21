@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "name": "neurochatagent",
+    "type": "streamlit",
+    "language": "python",
+    "framework": "streamlit"
+  },
+  "deployment": {
+    "target": "cloud_run",
+    "region": "us-central1",
+    "service_name": "app"
+  },
+  "database": {
+    "enabled": true,
+    "type": "postgresql",
+    "migrations": true
+  },
+  "secrets": {
+    "required": [
+      "DATABASE_URL",
+      "OPENAI_API_KEY",
+      "PINECONE_API_KEY",
+      "PINECONE_ENVIRONMENT"
+    ],
+    "optional": []
+  },
+  "analysis": {
+    "last_run": "2025-08-21T21:24:59.341222",
+    "dependencies": [
+      "streamlit",
+      "openai",
+      "pinecone",
+      "python-dotenv",
+      "PyPDF2",
+      "numpy",
+      "gunicorn",
+      "psycopg2-binary",
+      "alembic",
+      "sqlalchemy",
+      "psycopg2"
+    ],
+    "files": [
+      "main.py",
+      ".env",
+      "Dockerfile",
+      "models.py",
+      "app.py",
+      "requirements.txt",
+      "streamlit_app.py",
+      "config.py",
+      "alembic.ini"
+    ]
+  }
+}

@@ -1239,9 +1239,10 @@ def push_secrets():
             print(f"✅ Found existing secrets: {existing_secrets}")
             return jsonify({
                 "success": True,
-                "message": f"✅ Secrets already exist: {', '.join(existing_secrets)}",
+                "message": f"✅ All required secrets are already configured",
                 "existing": True,
-                "existing_secrets": existing_secrets
+                "pushed_secrets": existing_secrets,
+                "total_secrets": len(existing_secrets)
             })
         
         print("📤 Pushing new secrets...")
@@ -1277,12 +1278,68 @@ def push_secrets():
                 "success": True, 
                 "message": f"Successfully pushed {len(pushed_secrets)} secrets to {github_repo}",
                 "pushed_secrets": pushed_secrets,
-                "failed_secrets": failed_secrets
+                "failed_secrets": failed_secrets,
+                "total_secrets": len(pushed_secrets),
+                "repository": github_repo
             })
         else:
             return jsonify({
                 "success": False, 
                 "error": f"Failed to push any secrets. Errors: {failed_secrets}"
+            })
+            
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route('/api/check-existing-secrets', methods=['GET'])
+def check_existing_secrets():
+    """Check existing secrets in GitHub repository"""
+    try:
+        # Get repository from state
+        step2_data = state_manager.state.get('step2_project', {})
+        github_repo = step2_data.get('selected_repo', 'PramodChandrayan/neurochatagent')
+        
+        print(f"🔍 Checking existing secrets in {github_repo}...")
+        
+        # Get list of secrets
+        result = run_command_safely(f'gh secret list --repo {github_repo} --json name')
+        
+        if result['success']:
+            # Parse the JSON output to extract secret names
+            import json
+            try:
+                secrets_data = json.loads(result['output'])
+                secret_names = [secret['name'] for secret in secrets_data]
+                
+                print(f"✅ Found {len(secret_names)} existing secrets: {secret_names}")
+                
+                return jsonify({
+                    "success": True,
+                    "secrets": secret_names,
+                    "total": len(secret_names),
+                    "repository": github_repo
+                })
+            except json.JSONDecodeError:
+                # Fallback: try to extract names from text output
+                lines = result['output'].strip().split('\n')
+                secret_names = []
+                for line in lines:
+                    if line.strip() and not line.startswith('[') and not line.startswith(']'):
+                        # Extract name from line like '{"name":"SECRET_NAME"}'
+                        if '"name":"' in line:
+                            name = line.split('"name":"')[1].split('"')[0]
+                            secret_names.append(name)
+                
+                return jsonify({
+                    "success": True,
+                    "secrets": secret_names,
+                    "total": len(secret_names),
+                    "repository": github_repo
+                })
+        else:
+            return jsonify({
+                "success": False,
+                "error": f"Failed to fetch secrets: {result['error']}"
             })
             
     except Exception as e:
@@ -1435,6 +1492,75 @@ def analyze_project():
                 required_secrets.append(gcp_secret)
         
         project_analysis['required_secrets'] = required_secrets
+        
+        # 🔍 DATABASE ANALYSIS
+        print("🔍 Analyzing database requirements...")
+        
+        database_analysis = {
+            'enabled': False,
+            'type': None,
+            'url_template': None,
+            'detected_packages': [],
+            'migration_tools': [],
+            'migrations_enabled': False,
+            'connection_strings': []
+        }
+        
+        # Check requirements.txt for database packages
+        if os.path.exists('requirements.txt'):
+            try:
+                with open('requirements.txt', 'r') as f:
+                    requirements_content = f.read().lower()
+                    
+                    # Database package detection
+                    if 'psycopg2' in requirements_content or 'postgresql' in requirements_content:
+                        database_analysis['type'] = 'postgresql'
+                        database_analysis['url_template'] = 'postgresql://username:password@host:5432/database_name'
+                        database_analysis['detected_packages'].extend(['psycopg2', 'psycopg2-binary'])
+                    elif 'mysql' in requirements_content or 'pymysql' in requirements_content:
+                        database_analysis['type'] = 'mysql'
+                        database_analysis['url_template'] = 'mysql://username:password@host:3306/database_name'
+                        database_analysis['detected_packages'].extend(['mysql-connector-python', 'pymysql'])
+                    elif 'sqlite' in requirements_content:
+                        database_analysis['type'] = 'sqlite'
+                        database_analysis['url_template'] = 'sqlite:///database.db'
+                        database_analysis['detected_packages'].append('sqlite3')
+                        
+                    # Migration tools detection
+                    if 'alembic' in requirements_content or os.path.exists('alembic.ini'):
+                        database_analysis['migration_tools'].append('alembic')
+                    if 'django' in requirements_content and os.path.exists('manage.py'):
+                        database_analysis['migration_tools'].append('django')
+                    if 'flask-migrate' in requirements_content:
+                        database_analysis['migration_tools'].append('flask-migrate')
+                        
+                    if database_analysis['detected_packages']:
+                        database_analysis['enabled'] = True
+                        database_analysis['migrations_enabled'] = len(database_analysis['migration_tools']) > 0
+                        
+            except Exception as e:
+                print(f"⚠️ Error reading requirements.txt: {e}")
+        
+        # Check for database model files
+        db_files = ['models.py', 'database.py', 'db.py', 'schema.sql']
+        for file in db_files:
+            if os.path.exists(file):
+                database_analysis['enabled'] = True
+                break
+                
+        project_analysis['database'] = database_analysis
+        
+        # Add DATABASE_URL to required secrets if database is detected
+        if database_analysis['enabled']:
+            # Check if DATABASE_URL is already in required_secrets
+            if not any(secret['name'] == 'DATABASE_URL' for secret in required_secrets):
+                required_secrets.append({
+                    'name': 'DATABASE_URL',
+                    'value': '',
+                    'description': f'Database connection string for {database_analysis["type"]}',
+                    'source': 'database_analysis',
+                    'template': database_analysis['url_template']
+                })
         
         # 🔍 SMART MIGRATION DETECTION
         print("🔍 Analyzing for database migration requirements...")
@@ -1642,6 +1768,38 @@ def analyze_project():
             ]
         
         project_analysis['migration_analysis'] = migration_analysis
+        
+        # Add database information in the format expected by frontend
+        database_info = {
+            'enabled': migration_analysis.get('needs_migrations', False),
+            'type': None,
+            'url_template': None,
+            'detected_packages': migration_analysis.get('database_dependencies', []),
+            'migration_tools': [],
+            'migrations_enabled': migration_analysis.get('needs_migrations', False)
+        }
+        
+        # Determine database type from detected packages
+        detected_db_types = migration_analysis.get('database_types', [])
+        if 'postgresql' in detected_db_types:
+            database_info['type'] = 'postgresql'
+            database_info['url_template'] = 'postgresql://username:password@host:5432/database_name'
+        elif 'mysql' in detected_db_types:
+            database_info['type'] = 'mysql'
+            database_info['url_template'] = 'mysql://username:password@host:3306/database_name'
+        elif 'sqlite' in detected_db_types:
+            database_info['type'] = 'sqlite'
+            database_info['url_template'] = 'sqlite:///database.db'
+            
+        # Determine migration tools
+        if 'alembic' in migration_analysis.get('database_dependencies', []):
+            database_info['migration_tools'].append('alembic')
+        if 'django' in migration_analysis.get('database_dependencies', []):
+            database_info['migration_tools'].append('django')
+        if 'flask-migrate' in migration_analysis.get('database_dependencies', []):
+            database_info['migration_tools'].append('flask-migrate')
+            
+        project_analysis['database'] = database_info
         
         # Generate recommendations based on project type
         if project_analysis['project_type'] == 'streamlit':
@@ -2924,6 +3082,27 @@ def api_secret_management():
     try:
         result = intelligent_secret_management()
         return jsonify({"success": True, "guidance": result})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route('/api/set-database-secret', methods=['POST'])
+def api_set_database_secret():
+    """API endpoint for setting database secret"""
+    try:
+        data = request.get_json()
+        database_url = data.get('database_url')
+        
+        if not database_url:
+            return jsonify({"success": False, "error": "Database URL is required"})
+        
+        # Set the secret using GitHub CLI
+        result = run_command_safely(f'gh secret set DATABASE_URL --body "{database_url}"')
+        
+        if result['success']:
+            return jsonify({"success": True, "message": "DATABASE_URL secret set successfully"})
+        else:
+            return jsonify({"success": False, "error": f"Failed to set secret: {result['output']}"})
+            
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 

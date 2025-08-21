@@ -17,39 +17,39 @@ env:
   REGION: ${{ secrets.GCP_REGION }}
 
 jobs:
-  # migrate-database:
-  #   runs-on: ubuntu-latest
-  #   needs: deploy
-  #   steps:
-  #   - name: Checkout code
-  #     uses: actions/checkout@v4
+  migrate-database:
+    runs-on: ubuntu-latest
+    needs: deploy
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
       
-  #   - name: Google Cloud Auth
-  #     uses: google-github-actions/auth@v2
-  #     with:
-  #       workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
-  #       service_account: ${{ secrets.DEPLOY_SA_EMAIL }}
+    - name: Google Cloud Auth
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+        service_account: ${{ secrets.DEPLOY_SA_EMAIL }}
         
-  #   - name: Set up Cloud SDK
-  #     uses: google-github-actions/setup-gcloud@v2
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
       
-  #   - name: Run Database Migrations
-  #     run: |
-  #       echo "🔄 Running database migrations..."
-  #       # Set database URL based on detected type
-  #       export DATABASE_URL="${{ secrets.DATABASE_URL }}"
+    - name: Run Database Migrations
+      run: |
+        echo "🔄 Running database migrations..."
+        # Set database URL based on detected type
+        export DATABASE_URL="${{ secrets.DATABASE_URL }}"
         
-  #       # Run migrations based on detected type
-  #       if [ -f "alembic.ini" ]; then
-  #         echo "📊 Running Alembic migrations..."
-  #         alembic upgrade head
-  #       elif [ -f "manage.py" ]; then
-  #         echo "🐍 Running Django migrations..."
-  #         python manage.py migrate
-  #       else
-  #         echo "⚠️ No migration system detected, skipping migrations"
-  #       fi
-  #       echo "✅ Database migrations completed"
+        # Run migrations based on detected type
+        if [ -f "alembic.ini" ]; then
+          echo "📊 Running Alembic migrations..."
+          alembic upgrade head
+        elif [ -f "manage.py" ]; then
+          echo "🐍 Running Django migrations..."
+          python manage.py migrate
+        else
+          echo "⚠️ No migration system detected, skipping migrations"
+        fi
+        echo "✅ Database migrations completed"
 
   deploy:
     runs-on: ubuntu-latest

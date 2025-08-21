@@ -1,40 +1,20 @@
 #!/usr/bin/env python3
 """
-Finance Assistant Chatbot with Database Integration
-Enhanced with user management and chat history persistence
+Test Finance Chatbot - Database Integration Test
+Tests database functionality without requiring API keys
 """
 
 import os
-import json
-import openai
-from pinecone import Pinecone
 from models import User, ChatSession, ChatMessage, get_session, create_tables
 from datetime import datetime
 
-class FinanceChatbot:
+class TestFinanceChatbot:
     def __init__(self):
-        """Initialize the finance chatbot with database integration"""
-        # Initialize OpenAI
-        self.openai_client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-        
-        # Initialize Pinecone
-        self.pinecone = Pinecone(api_key=os.getenv('PINECONE_API_KEY'))
-        self.index = self.pinecone.Index("finance-knowledge")
-        
+        """Initialize test chatbot with database integration"""
         # Initialize database
         self.setup_database()
         
-        # Default system message
-        self.system_message = """You are a knowledgeable finance assistant specializing in:
-        - Investment advice and strategies
-        - Personal finance management
-        - Market analysis and trends
-        - Retirement planning
-        - Tax optimization
-        - Risk management
-        
-        Provide clear, practical advice while being mindful of regulatory compliance.
-        Always recommend consulting with qualified financial professionals for specific advice."""
+        print("✅ Test chatbot initialized successfully!")
     
     def setup_database(self):
         """Setup database tables if they don't exist"""
@@ -54,6 +34,8 @@ class FinanceChatbot:
                 session.add(user)
                 session.commit()
                 print(f"✅ Created new user: {username}")
+            else:
+                print(f"✅ Found existing user: {username}")
             return user
         except Exception as e:
             print(f"❌ Error managing user: {e}")
@@ -72,6 +54,7 @@ class FinanceChatbot:
             )
             session.add(chat_session)
             session.commit()
+            session.refresh(chat_session)  # Refresh to get the ID
             print(f"✅ Created chat session: {title}")
             return chat_session
         except Exception as e:
@@ -93,6 +76,7 @@ class FinanceChatbot:
             )
             session.add(message)
             session.commit()
+            print(f"✅ Saved {role} message: {content[:50]}...")
             return message
         except Exception as e:
             print(f"❌ Error saving message: {e}")
@@ -132,30 +116,8 @@ class FinanceChatbot:
         finally:
             session.close()
     
-    def search_knowledge_base(self, query, top_k=3):
-        """Search the Pinecone knowledge base"""
-        try:
-            # Create embedding for the query
-            response = self.openai_client.embeddings.create(
-                model="text-embedding-ada-002",
-                input=query
-            )
-            query_embedding = response.data[0].embedding
-            
-            # Search Pinecone
-            results = self.index.query(
-                vector=query_embedding,
-                top_k=top_k,
-                include_metadata=True
-            )
-            
-            return results.matches
-        except Exception as e:
-            print(f"❌ Error searching knowledge base: {e}")
-            return []
-    
-    def chat(self, message, user_id=None, session_id=None, username="anonymous"):
-        """Enhanced chat method with database integration"""
+    def simulate_chat(self, message, user_id=None, session_id=None, username="test_user"):
+        """Simulate chat without API calls"""
         try:
             # Get or create user if user_id provided
             user = None
@@ -172,66 +134,35 @@ class FinanceChatbot:
                 session_title = f"Chat about {message[:50]}..."
                 chat_session = self.create_chat_session(user_id, session_title)
                 session_id = chat_session.id if chat_session else None
+                
+                # If session creation failed, return error
+                if not session_id:
+                    return {
+                        "response": "I apologize, but I encountered an error creating a chat session.",
+                        "error": "Failed to create chat session"
+                    }
             
             # Save user message
             if session_id:
                 self.save_message(session_id, "user", message)
             
-            # Get chat history for context
-            chat_history = []
-            if session_id:
-                chat_history = self.get_chat_history(session_id, limit=5)
-            
-            # Search knowledge base
-            knowledge_results = self.search_knowledge_base(message)
-            context = ""
-            if knowledge_results:
-                context = "\n\nRelevant information:\n" + "\n".join([
-                    f"- {match.metadata.get('text', '')}" 
-                    for match in knowledge_results
-                ])
-            
-            # Prepare messages for OpenAI
-            messages = [{"role": "system", "content": self.system_message}]
-            
-            # Add chat history
-            for msg in chat_history:
-                messages.append({
-                    "role": msg.role,
-                    "content": msg.content
-                })
-            
-            # Add current message with context
-            messages.append({
-                "role": "user", 
-                "content": f"{message}{context}"
-            })
-            
-            # Get response from OpenAI
-            response = self.openai_client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=messages,
-                max_tokens=500,
-                temperature=0.7
-            )
-            
-            assistant_message = response.choices[0].message.content
-            tokens_used = response.usage.total_tokens
+            # Simulate AI response
+            ai_response = f"This is a simulated response to: '{message}'. In a real implementation, this would be generated by OpenAI's API."
             
             # Save assistant message
             if session_id:
-                self.save_message(session_id, "assistant", assistant_message, tokens_used)
+                self.save_message(session_id, "assistant", ai_response, tokens_used=25)
             
             return {
-                "response": assistant_message,
+                "response": ai_response,
                 "session_id": session_id,
                 "user_id": user_id,
-                "tokens_used": tokens_used,
-                "context_used": len(knowledge_results) > 0
+                "tokens_used": 25,
+                "context_used": False
             }
             
         except Exception as e:
-            print(f"❌ Error in chat: {e}")
+            print(f"❌ Error in simulated chat: {e}")
             return {
                 "response": "I apologize, but I encountered an error. Please try again.",
                 "error": str(e)
@@ -269,31 +200,77 @@ class FinanceChatbot:
             return {}
         finally:
             session.close()
+    
+    def display_chat_history(self, session_id):
+        """Display chat history for a session"""
+        messages = self.get_chat_history(session_id)
+        if not messages:
+            print("📝 No messages found for this session")
+            return
+        
+        print(f"\n📝 Chat History (Session {session_id}):")
+        print("=" * 60)
+        for i, msg in enumerate(messages, 1):
+            role_icon = "👤" if msg.role == "user" else "🤖"
+            print(f"{i}. {role_icon} {msg.role.upper()}: {msg.content}")
+            print(f"   📅 {msg.timestamp.strftime('%Y-%m-%d %H:%M:%S')}")
+            if msg.tokens_used > 0:
+                print(f"   🔢 Tokens: {msg.tokens_used}")
+            print()
 
 # Test the enhanced chatbot
 if __name__ == "__main__":
-    print("🧪 Testing enhanced finance chatbot...")
+    print("🧪 Testing Enhanced Finance Chatbot with Database...")
     
     # Initialize chatbot
-    chatbot = FinanceChatbot()
+    chatbot = TestFinanceChatbot()
     
     # Test with database integration
     test_user = chatbot.get_or_create_user("test_user", "test@example.com")
     
     if test_user:
+        # Get fresh user data from database
+        session = get_session()
+        user = session.query(User).filter_by(id=test_user.id).first()
+        session.close()
+        
+        if user:
+            print(f"\n👤 User ID: {user.id}")
+            print(f"📧 Email: {user.email}")
+        
         # Test chat functionality
-        response = chatbot.chat(
+        print("\n💬 Testing chat functionality...")
+        response1 = chatbot.simulate_chat(
             "What are the best investment options for beginners?",
-            user_id=test_user.id,
+            user_id=user.id,
             username="test_user"
         )
         
-        print(f"🤖 Response: {response['response']}")
-        print(f"📊 Session ID: {response['session_id']}")
-        print(f"🔢 Tokens Used: {response['tokens_used']}")
+        print(f"🤖 Response: {response1['response']}")
+        print(f"📊 Session ID: {response1['session_id']}")
+        print(f"🔢 Tokens Used: {response1['tokens_used']}")
+        
+        # Test another message in the same session
+        print("\n💬 Testing second message...")
+        response2 = chatbot.simulate_chat(
+            "How much should I invest initially?",
+            user_id=user.id,
+            session_id=response1['session_id']
+        )
+        
+        print(f"🤖 Response: {response2['response']}")
+        
+        # Display chat history
+        chatbot.display_chat_history(response1['session_id'])
         
         # Get user stats
-        stats = chatbot.get_user_stats(test_user.id)
+        stats = chatbot.get_user_stats(user.id)
         print(f"📈 User Stats: {stats}")
+        
+        # Test user sessions
+        sessions = chatbot.get_user_sessions(user.id)
+        print(f"\n📋 User Sessions: {len(sessions)}")
+        for session in sessions:
+            print(f"   - Session {session.id}: {session.session_title}")
     
-    print("✅ Enhanced chatbot test completed!")
+    print("\n✅ Enhanced chatbot test completed!")

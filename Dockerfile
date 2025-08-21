@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     libffi-dev \
     curl \
+    poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for better caching
@@ -24,17 +25,20 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 
-# 🗄️ Install database-specific dependencies (only if needed)
-# RUN pip install --no-cache-dir psycopg2-binary
+# 🗄️ Install database-specific dependencies
+RUN pip install --no-cache-dir psycopg2-binary
 
-# 🔄 Install migration tools (only if needed)
-# RUN pip install --no-cache-dir alembic
+# 🔄 Install migration tools
+RUN pip install --no-cache-dir alembic
 
 # Copy application code
 COPY . .
 
+# Initialize database tables
+RUN python -c "from models import create_tables; create_tables()" || echo "Database initialization skipped (no database connection)"
+
 # Create necessary directories
-RUN mkdir -p /app/logs /app/data
+RUN mkdir -p /app/logs /app/data /app/database
 
 # Set environment variables
 ENV PYTHONPATH=/app
@@ -43,7 +47,6 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Cloud Run expects PORT environment variable
 ENV PORT=8080
-
 ENV STREAMLIT_SERVER_PORT=8080
 ENV STREAMLIT_SERVER_ADDRESS=0.0.0.0
 ENV STREAMLIT_SERVER_HEADLESS=true

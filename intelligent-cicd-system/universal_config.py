@@ -241,6 +241,10 @@ class UniversalConfig:
         # Add database secrets if database is enabled
         if analysis["database"]["enabled"]:
             secrets["required"].append("DATABASE_URL")
+            
+        # Add migration secrets if migrations are enabled
+        if analysis["database"]["migrations"]:
+            secrets["required"].append("DATABASE_URL")
         
         # Remove duplicates
         secrets["required"] = list(set(secrets["required"]))

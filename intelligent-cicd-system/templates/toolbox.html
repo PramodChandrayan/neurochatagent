@@ -544,6 +544,7 @@
                     Push secrets to GitHub repository
                 </div>
                 <button class="btn" onclick="pushSecrets()" disabled>📤 Push Secrets</button>
+                <button class="btn btn-info" onclick="checkExistingSecrets()">🔍 Check Existing Secrets</button>
                 <div id="step4Status"></div>
             </div>
             
@@ -573,6 +574,8 @@
                 <button class="btn" onclick="intelligentPush()">📤 Intelligent Push</button>
                 <button class="btn" onclick="manageSecrets()">🔑 Secret Management</button>
                 <div id="automated-status"></div>
+                
+
             </div>
 
             <div class="step" id="step7">
@@ -1467,17 +1470,54 @@
                     
                     if (data.success) {
                         const analysis = data.analysis;
-                        statusDiv.innerHTML = `
+                        let analysisHtml = `
                             <div class="status success">
                                 ✅ Project analyzed successfully!
-                                                        <div class="details">
-                            <strong>Type:</strong> ${analysis.project_type}<br>
-                            <strong>Main Files:</strong> ${(analysis.main_files || []).join(', ') || 'None'}<br>
-                            <strong>Dependencies:</strong> ${(analysis.dependencies || []).join(', ') || 'None'}<br>
-                            <strong>Required Secrets:</strong> ${analysis.required_secrets ? analysis.required_secrets.length : 0} found
-                        </div>
-                            </div>
+                                <div class="details">
+                                    <strong>Type:</strong> ${analysis.project_type}<br>
+                                    <strong>Main Files:</strong> ${(analysis.main_files || []).join(', ') || 'None'}<br>
+                                    <strong>Dependencies:</strong> ${(analysis.dependencies || []).join(', ') || 'None'}<br>
+                                    <strong>Required Secrets:</strong> ${analysis.required_secrets ? analysis.required_secrets.length : 0} found
+                                </div>
                         `;
+                        
+                        // Add database information if detected
+                        if (analysis.database && analysis.database.enabled) {
+                            analysisHtml += `
+                                <div class="database-info" style="margin-top: 15px; padding: 15px; background: #e8f5e8; border-radius: 8px; border-left: 4px solid #28a745;">
+                                    <h4>🗄️ Database Detected</h4>
+                                    <div class="details">
+                                        <strong>Type:</strong> ${analysis.database.type || 'Unknown'}<br>
+                                        <strong>Packages:</strong> ${analysis.database.detected_packages.join(', ') || 'None'}<br>
+                                        <strong>Migration Tools:</strong> ${analysis.database.migration_tools.join(', ') || 'None'}<br>
+                                        <strong>Migrations Enabled:</strong> ${analysis.database.migrations_enabled ? 'Yes' : 'No'}<br>
+                                        <strong>URL Template:</strong> <code>${analysis.database.url_template || 'Not available'}</code>
+                                    </div>
+                                    
+                                    <!-- Integrated Database Setup Form -->
+                                    <div class="database-setup-form" style="margin-top: 15px; padding: 15px; background: white; border-radius: 6px; border: 1px solid #ddd;">
+                                        <h5>📝 Configure Database Connection</h5>
+                                        <div class="form-group" style="margin-bottom: 10px;">
+                                            <label for="db-username-step3" style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Database Username:</label>
+                                            <input type="text" id="db-username-step3" class="form-control" placeholder="Enter database username" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px;">
+                                        </div>
+                                        <div class="form-group" style="margin-bottom: 10px;">
+                                            <label for="db-password-step3" style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Database Password:</label>
+                                            <input type="password" id="db-password-step3" class="form-control" placeholder="Enter database password" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px;">
+                                        </div>
+                                        <div class="form-group" style="margin-bottom: 15px;">
+                                            <label for="db-name-step3" style="display: block; margin-bottom: 5px; font-weight: bold; font-size: 14px;">Database Name:</label>
+                                            <input type="text" id="db-name-step3" class="form-control" placeholder="finance_chatbot" value="finance_chatbot" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px;">
+                                        </div>
+                                        <button onclick="setupDatabaseInStep3()" class="btn btn-success" style="background: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">💾 Configure Database</button>
+                                        <div id="database-setup-result" style="margin-top: 10px;"></div>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                        
+                        analysisHtml += `</div>`;
+                        statusDiv.innerHTML = analysisHtml;
                         
                         // Show analysis results in a modal
                         showAnalysisModal(analysis);
@@ -1503,6 +1543,161 @@
                     statusDiv.innerHTML = `
                         <div class="status error">
                             ❌ Network error: ${error.message}
+                        </div>
+                    `;
+                }
+            }
+            
+            function showDatabaseSetup() {
+                // Show the secret input form for database setup
+                document.getElementById('secret-input-form').style.display = 'block';
+                document.getElementById('secret-input-form').scrollIntoView({ behavior: 'smooth' });
+            }
+            
+            function setupDatabaseInStep3() {
+                const username = document.getElementById('db-username-step3').value;
+                const password = document.getElementById('db-password-step3').value;
+                const dbName = document.getElementById('db-name-step3').value;
+                
+                if (!username || !password || !dbName) {
+                    document.getElementById('database-setup-result').innerHTML = `
+                        <div class="status error" style="color: #dc3545; font-size: 14px;">
+                            ❌ Please fill in all database credentials!
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Create the DATABASE_URL
+                const databaseUrl = `postgresql://${username}:${password}@/${dbName}?host=/cloudsql/neurofinance-468916:us-central1:finance-chatbot-db`;
+                
+                // Show loading state
+                document.getElementById('database-setup-result').innerHTML = `
+                    <div class="status info" style="color: #17a2b8; font-size: 14px;">
+                        🔄 Configuring database connection...
+                    </div>
+                `;
+                
+                // Set the secret via API
+                fetch('/api/set-database-secret', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        database_url: databaseUrl
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Store database URL in localStorage for Step 4
+                        localStorage.setItem('database_url', databaseUrl);
+                        
+                        document.getElementById('database-setup-result').innerHTML = `
+                            <div class="status success" style="color: #28a745; font-size: 14px;">
+                                ✅ Database configured successfully! DATABASE_URL secret has been set.
+                            </div>
+                        `;
+                        
+                        // Enable the next step button
+                        const pushButton = document.querySelector('#step4 button[onclick="pushSecrets()"]');
+                        if (pushButton) {
+                            pushButton.disabled = false;
+                        }
+                        
+                        // Show success message in step status
+                        const step3Status = document.getElementById('step3Status');
+                        const successMessage = document.createElement('div');
+                        successMessage.innerHTML = `
+                            <div class="status success" style="margin-top: 10px; padding: 10px; background: #d4edda; border-radius: 4px; border-left: 4px solid #28a745;">
+                                ✅ Database configuration complete! Ready to proceed to Step 4.
+                            </div>
+                        `;
+                        step3Status.appendChild(successMessage);
+                        
+                    } else {
+                        document.getElementById('database-setup-result').innerHTML = `
+                            <div class="status error" style="color: #dc3545; font-size: 14px;">
+                                ❌ Failed to configure database: ${data.error || 'Unknown error'}
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('database-setup-result').innerHTML = `
+                        <div class="status error" style="color: #dc3545; font-size: 14px;">
+                            ❌ Error: ${error.message}
+                        </div>
+                    `;
+                });
+            }
+            
+            async function checkExistingSecrets() {
+                document.getElementById('step4Status').innerHTML = '<div class="status info">🔍 Checking existing secrets...</div>';
+                
+                try {
+                    const response = await fetch('/api/check-existing-secrets');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        let secretsHtml = `
+                            <div class="status success">
+                                <h4>🔍 Existing Secrets Found</h4>
+                                <div class="secrets-summary" style="margin-top: 10px; padding: 15px; background: #d4edda; border-radius: 8px; border-left: 4px solid #28a745;">
+                                    <h5>📋 Current Secrets in Repository:</h5>
+                                    <div class="secrets-list">
+                        `;
+                        
+                        const existingSecrets = data.secrets || [];
+                        existingSecrets.forEach((secret, index) => {
+                            secretsHtml += `
+                                <div class="secret-item" style="margin-bottom: 8px; padding: 8px; background: white; border-radius: 4px; border: 1px solid #c3e6cb;">
+                                    <strong>${index + 1}.</strong> <code>${secret}</code> ✅ Already configured
+                                </div>
+                            `;
+                        });
+                        
+                        secretsHtml += `
+                                    </div>
+                                    <div style="margin-top: 10px; font-weight: bold; color: #155724;">
+                                        Total Secrets: ${existingSecrets.length}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        
+                        document.getElementById('step4Status').innerHTML = secretsHtml;
+                        
+                        // Enable the workflow generation button if we have secrets
+                        if (existingSecrets.length > 0) {
+                            const workflowButton = document.querySelector('#step5 button[onclick="generateWorkflowOnly()"]');
+                            if (workflowButton) {
+                                workflowButton.disabled = false;
+                            }
+                            const dockerfileButton = document.querySelector('#step5 button[onclick="generateDockerfileOnly()"]');
+                            if (dockerfileButton) {
+                                dockerfileButton.disabled = false;
+                            }
+                        }
+                        
+                    } else {
+                        document.getElementById('step4Status').innerHTML = `
+                            <div class="status error">
+                                <h4>❌ Error Checking Secrets</h4>
+                                <div class="error-details" style="margin-top: 10px; padding: 15px; background: #f8d7da; border-radius: 8px; border-left: 4px solid #dc3545;">
+                                    <strong>Error:</strong> ${data.error}
+                                </div>
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    document.getElementById('step4Status').innerHTML = `
+                        <div class="status error">
+                            <h4>❌ Network Error</h4>
+                            <div class="error-details" style="margin-top: 10px; padding: 15px; background: #f8d7da; border-radius: 8px; border-left: 4px solid #dc3545;">
+                                <strong>Error:</strong> ${error.message}
+                            </div>
                         </div>
                     `;
                 }
@@ -1536,6 +1731,16 @@
                         }
                     ];
                     
+                    // Add DATABASE_URL if it was configured in Step 3
+                    const databaseUrl = localStorage.getItem('database_url');
+                    if (databaseUrl) {
+                        secrets.push({
+                            name: 'DATABASE_URL',
+                            value: databaseUrl,
+                            description: 'Database connection string for PostgreSQL'
+                        });
+                    }
+                    
                     const response = await fetch('/api/step4/push_secrets', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
@@ -1544,14 +1749,68 @@
                     const data = await response.json();
                     
                     if (data.success) {
-                        document.getElementById('step4Status').innerHTML = '<div class="status success">✅ Secrets pushed successfully!<br>Pushed: ' + (data.pushed_secrets || []).join(', ') + '</div>';
+                        // Create detailed success message with all pushed secrets
+                        let successHtml = `
+                            <div class="status success">
+                                <h4>✅ Secrets Pushed Successfully!</h4>
+                                <div class="secrets-summary" style="margin-top: 10px; padding: 15px; background: #d4edda; border-radius: 8px; border-left: 4px solid #28a745;">
+                                    <h5>📋 Pushed Secrets Summary:</h5>
+                                    <div class="secrets-list">
+                        `;
+                        
+                        // Show each secret that was pushed
+                        const pushedSecrets = data.pushed_secrets || [];
+                        const totalSecrets = pushedSecrets.length;
+                        
+                        pushedSecrets.forEach((secret, index) => {
+                            successHtml += `
+                                <div class="secret-item" style="margin-bottom: 8px; padding: 8px; background: white; border-radius: 4px; border: 1px solid #c3e6cb;">
+                                    <strong>${index + 1}.</strong> <code>${secret}</code> ✅
+                                </div>
+                            `;
+                        });
+                        
+                        successHtml += `
+                                    </div>
+                                    <div style="margin-top: 10px; font-weight: bold; color: #155724;">
+                                        Total Secrets Pushed: ${totalSecrets}
+                                    </div>
+                                </div>
+                                
+                                <div class="next-steps" style="margin-top: 15px; padding: 15px; background: #e7f3ff; border-radius: 8px; border-left: 4px solid #007bff;">
+                                    <h5>🚀 Next Steps:</h5>
+                                    <ul style="margin: 10px 0; padding-left: 20px;">
+                                        <li>Proceed to <strong>Step 5</strong> to generate workflow files</li>
+                                        <li>Your secrets are now available in GitHub for CI/CD</li>
+                                        <li>Database migrations will use the configured DATABASE_URL</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        `;
+                        
+                        document.getElementById('step4Status').innerHTML = successHtml;
+                        
                         // Enable the workflow generation button
                         const workflowButton = document.querySelector('#step5 button[onclick="generateWorkflowOnly()"]');
                         if (workflowButton) {
                             workflowButton.disabled = false;
                         }
+                        
+                        // Also enable the Dockerfile generation button
+                        const dockerfileButton = document.querySelector('#step5 button[onclick="generateDockerfileOnly()"]');
+                        if (dockerfileButton) {
+                            dockerfileButton.disabled = false;
+                        }
+                        
                     } else {
-                        document.getElementById('step4Status').innerHTML = '<div class="status error">❌ Error: ' + data.error + '</div>';
+                        document.getElementById('step4Status').innerHTML = `
+                            <div class="status error">
+                                <h4>❌ Error Pushing Secrets</h4>
+                                <div class="error-details" style="margin-top: 10px; padding: 15px; background: #f8d7da; border-radius: 8px; border-left: 4px solid #dc3545;">
+                                    <strong>Error:</strong> ${data.error}
+                                </div>
+                            </div>
+                        `;
                     }
                 } catch (error) {
                     document.getElementById('step4Status').innerHTML = '<div class="status error">❌ Error: ' + error.message + '</div>';
@@ -2080,6 +2339,11 @@ gh run list --limit 1`;
                         `;
                         
                         statusDiv.innerHTML = secretsHtml;
+                        
+                        // Show the secret input form if DATABASE_URL is required
+                        if (guidance.required_secrets.includes('DATABASE_URL')) {
+                            document.getElementById('secret-input-form').style.display = 'block';
+                        }
                     } else {
                         statusDiv.innerHTML = `<div class="status error">❌ Secret analysis failed: ${data.error}</div>`;
                     }
@@ -2127,5 +2391,7 @@ gh secret set PINECONE_ENVIRONMENT --body "your-pinecone-environment"`;
                     alert('Failed to copy commands. Please copy them manually.');
                 });
             }
+            
+
         </script>
     </body>
