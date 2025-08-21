@@ -11,8 +11,8 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
-    libpq-dev \  # PostgreSQL
-    libmysqlclient-dev \  # MySQL
+    libpq-dev \
+    libmysqlclient-dev \
     libssl-dev \
     libffi-dev \
     curl \
